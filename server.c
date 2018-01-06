@@ -10,8 +10,15 @@ Server* make_server(int max_clients, int timeout_sec) {
     server->listen_fd = -1;
     server->active_clients = 0;
 
+    server->states = make_states(max_clients);
+    if (server->states == NULL) {
+        free(server);
+        return NULL;
+    }
+
     server->fds = (struct pollfd *) malloc(sizeof(struct pollfd) * max_clients);
     if (server->fds == NULL) {
+        destroy_states(server->states);
         free(server);
         return NULL;
     }
@@ -37,6 +44,9 @@ void destroy_server(Server *server) {
         }
         if (server->listen_fd >= 0) {
             close(server->listen_fd);
+        }
+        if (server->states != NULL) {
+            destroy_states(server->states);
         }
         free(server);
     }
@@ -82,7 +92,7 @@ int init_server(Server *server, int port) {
     return 0;
 }
 
-int run_server(Server *server, HandleFunc handler) {
+int run_server(Server *server) {
     assert(server);
     assert(server->listen_fd >= 0);
     assert(server->fds);
@@ -127,7 +137,8 @@ int run_server(Server *server, HandleFunc handler) {
                 }
             }
             else {
-                int need_close = handle_client(server, server->fds[I], handler);
+                SmtpState *state = server->states + I;
+                int need_close = handle_client(server, server->fds[I], state);
                 if (need_close != 0) {
                     close(fd_wrap.fd);
                     server->fds[I].fd = -1;
@@ -159,6 +170,18 @@ int accept_clients(Server *server) {
             printf("New incoming connection - %d\n", new_fd);
 
             int new_index = server->active_clients;
+            SmtpState *state = server->states + new_index;
+
+            char welcome[200];
+            welcome[0] = '\0';
+            handle_welcome(state, welcome);
+
+            int written_cnt = send(new_fd, welcome, strlen(welcome), 0);
+            if (written_cnt < 0) {
+                printf("send() failed");
+                return -1;
+            }
+
             server->fds[new_index].fd = new_fd;
             server->fds[new_index].events = POLLIN;
             server->active_clients += 1;
@@ -174,7 +197,7 @@ int accept_clients(Server *server) {
     return 0;
 }
 
-int handle_client(Server *server, struct pollfd fd_wrap, HandleFunc handler) {
+int handle_client(Server *server, struct pollfd fd_wrap, SmtpState *state) {
     printf("Descriptor %d is readable\n", fd_wrap.fd);
 
     char input_buf[2000];
@@ -199,13 +222,11 @@ int handle_client(Server *server, struct pollfd fd_wrap, HandleFunc handler) {
 
     char output_buf[200];
     output_buf[0] = '\0';
-
-    // process request from client
-    handler(input_buf, output_buf);
+    handle_request(state, input_buf, output_buf);
 
     int written_cnt = send(fd_wrap.fd, output_buf, strlen(output_buf), 0);
     if (written_cnt < 0) {
-        perror("send() failed");
+        printf("send() failed");
         return -1;
     }
     return 0;

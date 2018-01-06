@@ -5,7 +5,9 @@ CONFIG -= qt
 
 SOURCES += \
     server.c \
-    main.c
+    main.c \
+    smtp.c
 
 HEADERS += \
-    server.h
+    server.h \
+    smtp.h

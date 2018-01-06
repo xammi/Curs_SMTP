@@ -1,9 +1,5 @@
 #include "server.h"
 
-void handler(char *input, char *output) {
-    printf("handler in: %s", input);
-}
-
 
 int main(int argc, char *argv[]) {
 
@@ -20,7 +16,7 @@ int main(int argc, char *argv[]) {
     }
 
     // main server loop
-    run_server(server, handler);
+    run_server(server);
 
     destroy_server(server);
     return 0;
