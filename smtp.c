@@ -47,6 +47,7 @@ int check_regex(char *regex, char *src, char *param) {
         int len = matchedGroups[1].rm_eo - matchedGroups[1].rm_so;
         strncpy(param, cursor + matchedGroups[1].rm_so, len);
         param[len] = '\0';
+        printf("Extracted %s\n", param);
     }
     else {
         param[0] = '\0';
@@ -101,7 +102,7 @@ void smtp_response(int code, char *output) {
 int handle_request(SmtpState *state, char *input, char *output) {
     if (state->status == GET_DATA) {
         if (check_command(".\r\n", input) == 0) {
-            int res_code = save_maildir(state->msg);
+            int res_code = save_maildir_for(state->msg, 0);
             if (res_code == 0) {
                 state->status = READY;
                 smtp_response(250, output);
@@ -404,29 +405,28 @@ int prepare_maildir(char *user_email, char *workdir) {
 
     int len = strlen(workdir);
     if (workdir[len - 1] != '/') {
-        workdir[len] = '/';
-        workdir[len + 1] = '\0';
+        strcat(workdir, "/");
     }
     strncat(workdir, username, 255);
 
     struct stat sb;
     int res_code;
 
-    if (stat(workdir, &sb) == 0 && ! S_ISDIR(sb.st_mode)) {
+    if (stat(workdir, &sb) != 0 || ! S_ISDIR(sb.st_mode)) {
         res_code = mkdir(workdir, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
         if (res_code != 0) {
             return -1;
         }
     }
     strcat(workdir, "/Maildir");
-    if (stat(workdir, &sb) == 0 && ! S_ISDIR(sb.st_mode)) {
+    if (stat(workdir, &sb) != 0 || ! S_ISDIR(sb.st_mode)) {
         res_code = mkdir(workdir, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
         if (res_code != 0) {
             return -1;
         }
     }
     strcat(workdir, "/new");
-    if (stat(workdir, &sb) == 0 && ! S_ISDIR(sb.st_mode)) {
+    if (stat(workdir, &sb) != 0 || ! S_ISDIR(sb.st_mode)) {
         res_code = mkdir(workdir, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
         if (res_code != 0) {
             return -1;
@@ -434,9 +434,10 @@ int prepare_maildir(char *user_email, char *workdir) {
     }
     workdir[strlen(workdir) - 4] = '\0';
     strcat(workdir, "/tmp");
-    if (stat(workdir, &sb) == 0 && ! S_ISDIR(sb.st_mode)) {
+    if (stat(workdir, &sb) != 0 || ! S_ISDIR(sb.st_mode)) {
         res_code = mkdir(workdir, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
     }
+    strcat(workdir, "/");
     return res_code;
 }
 
@@ -449,7 +450,7 @@ void create_unique_id(char *unique_id) {
     strncpy(unique_id, uuid_str, 37);
 }
 
-int save_maildir(SmtpMessage *msg) {
+int save_maildir_for(SmtpMessage *msg, int index) {
     char unique_id[255];
     create_unique_id(unique_id);
 
@@ -471,15 +472,17 @@ int save_maildir(SmtpMessage *msg) {
     fprintf(mail_file, "Received: by %s with SMTP; %s\n", "smtp.max.ru", asctime(localtime(&now)));
     fprintf(mail_file, "Message-Id: <%s>\n", unique_id);
     fprintf(mail_file, "From: <%s>\n", msg->sender);
-    fprintf(mail_file, "To: <%s>\n", msg->recipients[0]);
+    fprintf(mail_file, "To: <%s>\n", msg->recipients[index]);
     fprintf(mail_file, "Date: %s\n", asctime(localtime(&now)));
 
     if (msg->rec_cnt > 1) {
         fprintf(mail_file, "Cc: ");
-        for (int I = 1; I < msg->rec_cnt; I++) {
-            fprintf(mail_file, "<%s>", msg->recipients[I]);
-            if (I + 1 < msg->rec_cnt) {
-                fprintf(mail_file, ",");
+        for (int I = 0; I < msg->rec_cnt; I++) {
+            if (I != index) {
+                fprintf(mail_file, "<%s>", msg->recipients[I]);
+                if (I + 1 < msg->rec_cnt) {
+                    fprintf(mail_file, ",");
+                }
             }
         }
         fprintf(mail_file, "\n");
@@ -495,5 +498,15 @@ int save_maildir(SmtpMessage *msg) {
     fprintf(mail_file, "%s\n\n", msg->message);
 
     fclose(mail_file);
-    return 0;
+
+    char new_name_buf[1024];
+    strcpy(new_name_buf, workdir_buf);
+    char *cursor = strstr(new_name_buf, unique_id);
+    if (*(cursor - 1) == '/') {
+        *(cursor - 2) = 'w';
+        *(cursor - 3) = 'e';
+        *(cursor - 4) = 'n';
+    }
+    int res_code = rename(workdir_buf, new_name_buf);
+    return res_code;
 }

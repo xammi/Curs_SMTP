@@ -42,7 +42,7 @@ char* append_message(SmtpMessage *msg, char *msgChunk);
 
 void create_unique_id(char *unique_id);
 int prepare_maildir(char *user_email, char *workdir);
-int save_maildir(SmtpMessage *msg);
+int save_maildir_for(SmtpMessage *msg, int index);
 
 
 typedef struct {
