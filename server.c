@@ -220,13 +220,16 @@ int handle_client(Server *server, struct pollfd fd_wrap, SmtpState *state) {
         }
     }
 
-    char output_buf[200];
+    char output_buf[255];
     output_buf[0] = '\0';
-    handle_request(state, input_buf, output_buf);
+    int need_close = handle_request(state, input_buf, output_buf);
 
     int written_cnt = send(fd_wrap.fd, output_buf, strlen(output_buf), 0);
     if (written_cnt < 0) {
         printf("send() failed");
+        return -1;
+    }
+    if (need_close > 0) {
         return -1;
     }
     return 0;
