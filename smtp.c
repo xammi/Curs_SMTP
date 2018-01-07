@@ -155,7 +155,7 @@ int handle_request(SmtpState *state, char *input, char *output) {
                 }
                 state->msg = make_message();
                 set_domain(state->msg, domain);
-                strncpy(output, "250-smtp.maxim.ru\r\n250-PIPELINING\r\n250-8BITMIME\r\n", 255);
+                strncpy(output, "250-smtp.maxim.ru\r\n250-PIPELINING\r\n250-8BITMIME\r\n250-VRFY\r\n", 255);
                 state->status = NEED_SENDER;
             }
             else {
@@ -344,28 +344,36 @@ int save_maildir(SmtpMessage *msg) {
 
     time_t now;
     time(&now);
-    fprintf(mail_file, "Received: by %s with SMTP; %Y-%m-%d %H:%M:%S\n", msg->domain, gmtime(now));
-    fprintf(mail_file, "Message-Id: <%s>", "005f01c27055$b0be7c80$6df155c2@max.ru\n");
+
+    fprintf(mail_file, "Received: by %s with SMTP; %s\n", "smtp.max.ru", asctime(localtime(&now)));
+    fprintf(mail_file, "Message-Id: <%s>\n", "005f01c27055$b0be7c80$6df155c2@max.ru");
     fprintf(mail_file, "From: <%s>\n", msg->sender);
     fprintf(mail_file, "To: <%s>\n", msg->recipients[0]);
+    fprintf(mail_file, "Date: %s\n", asctime(localtime(&now)));
 
-    fprintf(mail_file, "Cc: ");
-    for (int I = 1; I < msg->rec_cnt; I++) {
-        fprintf(mail_file, "<%s>", msg->recipients[I]);
-        if (I + 1 < msg->rec_cnt) {
-            fprintf(mail_file, ",");
+    if (msg->rec_cnt > 1) {
+        fprintf(mail_file, "Cc: ");
+        for (int I = 1; I < msg->rec_cnt; I++) {
+            fprintf(mail_file, "<%s>", msg->recipients[I]);
+            if (I + 1 < msg->rec_cnt) {
+                fprintf(mail_file, ",");
+            }
         }
+        fprintf(mail_file, "\n");
     }
-    fprintf(mail_file, "\n");
 
     char subject[200];
-    strncpy(subject, msg->message, strchr(msg->message, '\n'));
+    strncpy(subject, msg->message, (int)(strchr(msg->message, '\n') - msg->message));
     fprintf(mail_file, "Subject: %s\n", subject);
+
+    printf("Write 4\n");
 
     fprintf(mail_file, "Content-Type: text/plain; charset=koi8-r\n");
     fprintf(mail_file, "Content-Transfer-Encoding: 8bit\n");
     fprintf(mail_file, "\n\n");
     fprintf(mail_file, "%s\n\n", msg->message);
+
+    printf("Write 5\n");
 
     fclose(mail_file);
     return 0;
