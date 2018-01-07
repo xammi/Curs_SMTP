@@ -30,7 +30,7 @@ void handle_welcome(SmtpState *state, char *output) {
 
 int check_regex(char *regex, char *src, char *param) {
     regex_t regexObj;
-    int res_code = regcomp(&regexObj, regex, REG_EXTENDED);
+    int res_code = regcomp(&regexObj, regex, REG_EXTENDED | REG_ICASE);
     if (res_code != 0) {
         printf("Could not compile regex %s\n", regex);
         return 1;
@@ -58,7 +58,7 @@ int check_regex(char *regex, char *src, char *param) {
 }
 
 int check_command(char *command, char *src) {
-    return strncmp(src, command, strlen(command));
+    return strncasecmp(src, command, strlen(command));
 }
 
 void smtp_response(int code, char *output) {
@@ -311,7 +311,7 @@ char* set_domain(SmtpMessage *msg, char *domain) {
     if (msg->domain != NULL) {
         free(msg->domain);
     }
-    msg->domain = (char *) malloc(sizeof(char) * strlen(domain));
+    msg->domain = (char *) malloc(sizeof(char) * (strlen(domain) + 2));
     if (msg->domain == NULL) {
         return NULL;
     }
@@ -323,7 +323,7 @@ char* set_sender(SmtpMessage *msg, char *sender) {
     if (msg->sender != NULL) {
         free(msg->sender);
     }
-    msg->sender = (char *) malloc(sizeof(char) * strlen(sender));
+    msg->sender = (char *) malloc(sizeof(char) * (strlen(sender) + 2));
     if (msg->sender == NULL) {
         return NULL;
     }
@@ -342,7 +342,7 @@ char* set_recipient(SmtpMessage *msg, char *recipient) {
         }
     }
 
-    msg->recipients[msg->rec_cnt] = (char *) malloc(sizeof(char) * strlen(recipient));
+    msg->recipients[msg->rec_cnt] = (char *) malloc(sizeof(char) * (strlen(recipient) + 2));
     if (msg->recipients[msg->rec_cnt] == NULL) {
         return NULL;
     }
@@ -489,7 +489,9 @@ int save_maildir_for(SmtpMessage *msg, int index) {
     }
 
     char subject[200];
-    strncpy(subject, msg->message, (int)(strchr(msg->message, '\n') - msg->message));
+    int N = (int)(strchr(msg->message, '\n') - msg->message);
+    strncpy(subject, msg->message, N);
+    subject[N] = '\0';
     fprintf(mail_file, "Subject: %s\n", subject);
 
     fprintf(mail_file, "Content-Type: text/plain; charset=koi8-r\n");
