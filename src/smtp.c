@@ -1,4 +1,4 @@
-#include "smtp.h"
+#include "inc/smtp.h"
 #include <time.h>
 
 
@@ -367,7 +367,7 @@ char* append_message(SmtpMessage *msg, char *msgChunk) {
 }
 
 int check_user(char *user_info, char *full_info) {
-    const char *info_file_name = "/Users/maksimkislenko/smtp_env/smtp_server/userinfo";
+    const char *info_file_name = "/Users/maksimkislenko/smtp_env/smtp_server/userinfo.txt";
     FILE *info_file = fopen(info_file_name, "r");
     if (info_file == NULL) {
         printf("Can not open userinfo file!\n");

@@ -1,7 +1,7 @@
 #ifndef SERVER_H
 #define SERVER_H
 
-#include "smtp.h"
+#include "inc/smtp.h"
 
 #include <unistd.h>
 #include <sys/poll.h>

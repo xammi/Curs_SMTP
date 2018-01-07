@@ -4,13 +4,14 @@ CONFIG -= app_bundle
 CONFIG -= qt
 
 SOURCES += \
-    server.c \
+    src/server.c \
     main.c \
-    smtp.c
+    src/smtp.c
 
 HEADERS += \
-    server.h \
-    smtp.h
+    inc/server.h \
+    inc/smtp.h
 
 DISTFILES += \
-    userinfo
+    userinfo.txt \
+    README.rst
