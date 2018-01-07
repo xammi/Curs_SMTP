@@ -20,8 +20,10 @@ enum SmtpStatus {
 typedef struct {
     char *domain;
     char *sender;
+
     char **recipients;
     int rec_cnt;
+    int rec_size;
 
     char *message;
     int msg_size;
@@ -30,12 +32,12 @@ typedef struct {
 SmtpMessage* make_message();
 void destroy_message(SmtpMessage *msg);
 
-void set_domain(SmtpMessage *msg, char *domain);
-void set_sender(SmtpMessage *msg, char *sender);
-void set_recipient(SmtpMessage *msg, char *recipient);
+char* set_domain(SmtpMessage *msg, char *domain);
+char* set_sender(SmtpMessage *msg, char *sender);
+char* set_recipient(SmtpMessage *msg, char *recipient);
 
-void append_message(SmtpMessage *msg, char *msgChunk);
-void save_maildir(SmtpMessage *msg);
+char* append_message(SmtpMessage *msg, char *msgChunk);
+int save_maildir(SmtpMessage *msg);
 
 
 typedef struct {
