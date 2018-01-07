@@ -36,15 +36,21 @@ int check_regex(char *regex, char *src, char *param) {
         return 1;
     }
 
-    regmatch_t matchedGroups[1];
+    regmatch_t matchedGroups[2];
     char *cursor = src;
-    res_code = regexec(&regexObj, cursor, 1, matchedGroups, 0);
+    res_code = regexec(&regexObj, cursor, 2, matchedGroups, 0);
     if (res_code != 0) {
         printf("No match with %s\n", regex);
         return 1;
     }
-    strncpy(param, cursor + matchedGroups[0].rm_so, 100);
-    param[matchedGroups[0].rm_eo] = '\0';
+    if (matchedGroups[1].rm_so >= 0) {
+        int len = matchedGroups[1].rm_eo - matchedGroups[1].rm_so;
+        strncpy(param, cursor + matchedGroups[1].rm_so, len);
+        param[len] = '\0';
+    }
+    else {
+        param[0] = '\0';
+    }
 
     regfree(&regexObj);
     return 0;
@@ -57,7 +63,7 @@ int check_command(char *command, char *src) {
 void smtp_response(int code, char *output) {
     char *response = "";
     if (code == 221) {
-        response = "221 Bye\r\n";
+        response = "221 Closing transmission channel\r\n";
     }
     else if (code == 250) {
         response = "250 OK\r\n";
@@ -82,6 +88,9 @@ void smtp_response(int code, char *output) {
     }
     else if (code == 503) {
         response = "503 Bad sequence of commands\r\n";
+    }
+    else if (code == 550) {
+        response = "550 Sender unknown\r\n";
     }
     else if (code == 552) {
         response = "552 Requested mail action aborted: exceeded storage allocation\r\n";
@@ -171,12 +180,14 @@ int handle_request(SmtpState *state, char *input, char *output) {
             char sender[100];
 
             if (check_regex("MAIL FROM:<([a-zA-Z0-9\.@\-_]+)>", input, sender) == 0) {
-
-                // check that sender is known
-
-                set_sender(state->msg, sender);
-                smtp_response(250, output);
-                state->status = NEED_RECIPIENT;
+                if (check_user(sender, NULL) == 0) {
+                    set_sender(state->msg, sender);
+                    smtp_response(250, output);
+                    state->status = NEED_RECIPIENT;
+                }
+                else {
+                    smtp_response(550, output);
+                }
             }
             else {
                 smtp_response(501, output);
@@ -213,6 +224,27 @@ int handle_request(SmtpState *state, char *input, char *output) {
         if (state->status == NEED_DATA) {
             state->status = GET_DATA;
             smtp_response(354, output);
+        }
+        else {
+            smtp_response(503, output);
+        }
+    }
+    else if (check_command("VRFY", input) == 0) {
+        if (state->status == READY || state->status == NEED_SENDER) {
+            char user_info[255];
+            if (check_regex("VRFY ([a-zA-Z0-9\.@\-_]+)", input, user_info) == 0) {
+                char full_info[1024];
+                if (check_user(user_info, full_info) == 0) {
+                    strcpy(output, "250 ");
+                    strncat(output, full_info, 1020);
+                }
+                else {
+                    smtp_response(550, output);
+                }
+            }
+            else {
+                smtp_response(501, output);
+            }
         }
         else {
             smtp_response(503, output);
@@ -333,11 +365,102 @@ char* append_message(SmtpMessage *msg, char *msgChunk) {
     return msg->message;
 }
 
+int check_user(char *user_info, char *full_info) {
+    const char *info_file_name = "/Users/maksimkislenko/smtp_env/smtp_server/userinfo";
+    FILE *info_file = fopen(info_file_name, "r");
+    if (info_file == NULL) {
+        printf("Can not open userinfo file!\n");
+        return -1;
+    }
+    char info[1024];
+
+    while (1) {
+        int eof = fgets(info, 1024, info_file);
+        if (eof != NULL) {
+            char *found = strstr(info, user_info);
+            if (found != NULL) {
+                if (full_info != NULL) {
+                    strncpy(full_info, info, 1024);
+                }
+                fclose(info_file);
+                return 0;
+            }
+        }
+        else {
+            break;
+        }
+    }
+    fclose(info_file);
+    return -1;
+}
+
+//-------------------------------------------------------------------------------------------------
+
+int prepare_maildir(char *user_email, char *workdir) {
+    char username[100];
+    int N = (int)(strchr(user_email, '@') - user_email);
+    strncpy(username, user_email, N);
+    username[N] = '\0';
+
+    int len = strlen(workdir);
+    if (workdir[len - 1] != '/') {
+        workdir[len] = '/';
+        workdir[len + 1] = '\0';
+    }
+    strncat(workdir, username, 255);
+
+    struct stat sb;
+    int res_code;
+
+    if (stat(workdir, &sb) == 0 && ! S_ISDIR(sb.st_mode)) {
+        res_code = mkdir(workdir, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+        if (res_code != 0) {
+            return -1;
+        }
+    }
+    strcat(workdir, "/Maildir");
+    if (stat(workdir, &sb) == 0 && ! S_ISDIR(sb.st_mode)) {
+        res_code = mkdir(workdir, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+        if (res_code != 0) {
+            return -1;
+        }
+    }
+    strcat(workdir, "/new");
+    if (stat(workdir, &sb) == 0 && ! S_ISDIR(sb.st_mode)) {
+        res_code = mkdir(workdir, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+        if (res_code != 0) {
+            return -1;
+        }
+    }
+    workdir[strlen(workdir) - 4] = '\0';
+    strcat(workdir, "/tmp");
+    if (stat(workdir, &sb) == 0 && ! S_ISDIR(sb.st_mode)) {
+        res_code = mkdir(workdir, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+    }
+    return res_code;
+}
+
+void create_unique_id(char *unique_id) {
+    uuid_t uuid;
+    uuid_generate_time(uuid);
+
+    char uuid_str[37];
+    uuid_unparse_lower(uuid, uuid_str);
+    strncpy(unique_id, uuid_str, 37);
+}
+
 int save_maildir(SmtpMessage *msg) {
-    const char *mail_file_name = "/Users/maksimkislenko/Desktop/mail.txt";
-    FILE *mail_file = fopen(mail_file_name, "w");
+    char unique_id[255];
+    create_unique_id(unique_id);
+
+    char workdir_buf[1024];
+    strcpy(workdir_buf, "/Users/maksimkislenko/Desktop/mail");
+    prepare_maildir(msg->recipients[0], workdir_buf);
+    strcat(workdir_buf, unique_id);
+
+    FILE *mail_file = fopen(workdir_buf, "w");
     if (mail_file == NULL) {
-        printf("Can not open '%s'\n", mail_file_name);
+        printf("Can not open '%s'\n", workdir_buf);
         return -1;
     }
     fprintf(mail_file, "\n");
@@ -346,7 +469,7 @@ int save_maildir(SmtpMessage *msg) {
     time(&now);
 
     fprintf(mail_file, "Received: by %s with SMTP; %s\n", "smtp.max.ru", asctime(localtime(&now)));
-    fprintf(mail_file, "Message-Id: <%s>\n", "005f01c27055$b0be7c80$6df155c2@max.ru");
+    fprintf(mail_file, "Message-Id: <%s>\n", unique_id);
     fprintf(mail_file, "From: <%s>\n", msg->sender);
     fprintf(mail_file, "To: <%s>\n", msg->recipients[0]);
     fprintf(mail_file, "Date: %s\n", asctime(localtime(&now)));
@@ -366,14 +489,10 @@ int save_maildir(SmtpMessage *msg) {
     strncpy(subject, msg->message, (int)(strchr(msg->message, '\n') - msg->message));
     fprintf(mail_file, "Subject: %s\n", subject);
 
-    printf("Write 4\n");
-
     fprintf(mail_file, "Content-Type: text/plain; charset=koi8-r\n");
     fprintf(mail_file, "Content-Transfer-Encoding: 8bit\n");
     fprintf(mail_file, "\n\n");
     fprintf(mail_file, "%s\n\n", msg->message);
-
-    printf("Write 5\n");
 
     fclose(mail_file);
     return 0;

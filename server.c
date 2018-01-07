@@ -220,7 +220,7 @@ int handle_client(Server *server, struct pollfd fd_wrap, SmtpState *state) {
         }
     }
 
-    char output_buf[255];
+    char output_buf[1024];
     output_buf[0] = '\0';
     int need_close = handle_request(state, input_buf, output_buf);
 

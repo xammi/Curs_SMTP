@@ -7,6 +7,9 @@
 #include <string.h>
 #include <regex.h>
 
+#include <sys/stat.h>
+#include <uuid/uuid.h>
+
 
 enum SmtpStatus {
     NEW,
@@ -35,8 +38,10 @@ void destroy_message(SmtpMessage *msg);
 char* set_domain(SmtpMessage *msg, char *domain);
 char* set_sender(SmtpMessage *msg, char *sender);
 char* set_recipient(SmtpMessage *msg, char *recipient);
-
 char* append_message(SmtpMessage *msg, char *msgChunk);
+
+void create_unique_id(char *unique_id);
+int prepare_maildir(char *user_email, char *workdir);
 int save_maildir(SmtpMessage *msg);
 
 
@@ -55,6 +60,7 @@ int handle_request(SmtpState *state, char *input, char *output);
 int check_regex(char *regex, char *src, char *param);
 int check_command(char *command, char *src);
 void smtp_response(int code, char *output);
+int check_user(char *user_info, char *full_info);
 
 
 #endif // SMTP_H

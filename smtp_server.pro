@@ -11,3 +11,6 @@ SOURCES += \
 HEADERS += \
     server.h \
     smtp.h
+
+DISTFILES += \
+    userinfo
