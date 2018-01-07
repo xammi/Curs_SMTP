@@ -14,4 +14,4 @@ HEADERS += \
 
 DISTFILES += \
     userinfo.txt \
-    README.rst
+    README.md
