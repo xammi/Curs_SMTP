@@ -43,15 +43,9 @@ int check_regex(char *regex, char *src, char *param) {
         printf("No match with %s\n", regex);
         return 1;
     }
-    if (matchedGroups[1].rm_so >= 0) {
-        int len = matchedGroups[1].rm_eo - matchedGroups[1].rm_so;
-        strncpy(param, cursor + matchedGroups[1].rm_so, len);
-        param[len] = '\0';
-        printf("Extracted %s\n", param);
-    }
-    else {
-        param[0] = '\0';
-    }
+
+    strpart(src, param, matchedGroups[1]);
+    printf("Extracted %s\n", param);
 
     regfree(&regexObj);
     return 0;
@@ -102,7 +96,7 @@ void smtp_response(int code, char *output) {
 int handle_request(SmtpState *state, char *input, char *output) {
     if (state->status == GET_DATA) {
         if (check_command(".\r\n", input) == 0) {
-            int res_code = save_maildir_for(state->msg, 0);
+            int res_code = save_maildir(state->msg);
             if (res_code == 0) {
                 state->status = READY;
                 smtp_response(250, output);
@@ -397,57 +391,45 @@ int check_user(char *user_info, char *full_info) {
 
 //-------------------------------------------------------------------------------------------------
 
-int prepare_maildir(char *user_email, char *workdir) {
-    char username[100];
-    int N = (int)(strchr(user_email, '@') - user_email);
-    strncpy(username, user_email, N);
-    username[N] = '\0';
-
-    int len = strlen(workdir);
-    if (workdir[len - 1] != '/') {
-        strcat(workdir, "/");
-    }
-    strncat(workdir, username, 255);
-
-    struct stat sb;
-    int res_code;
-
-    if (stat(workdir, &sb) != 0 || ! S_ISDIR(sb.st_mode)) {
-        res_code = mkdir(workdir, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+int save_maildir(SmtpMessage *msg) {
+    int res_code = 0;
+    for (int I = 0; I < msg->rec_cnt; I++) {
+        res_code = save_maildir_for(msg, I);
         if (res_code != 0) {
-            return -1;
+            printf("Msg not delivered\n");
         }
     }
-    strcat(workdir, "/Maildir");
-    if (stat(workdir, &sb) != 0 || ! S_ISDIR(sb.st_mode)) {
-        res_code = mkdir(workdir, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-        if (res_code != 0) {
-            return -1;
-        }
-    }
-    strcat(workdir, "/new");
-    if (stat(workdir, &sb) != 0 || ! S_ISDIR(sb.st_mode)) {
-        res_code = mkdir(workdir, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-        if (res_code != 0) {
-            return -1;
-        }
-    }
-    workdir[strlen(workdir) - 4] = '\0';
-    strcat(workdir, "/tmp");
-    if (stat(workdir, &sb) != 0 || ! S_ISDIR(sb.st_mode)) {
-        res_code = mkdir(workdir, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-    }
-    strcat(workdir, "/");
-    return res_code;
+    return 0;
 }
 
-void create_unique_id(char *unique_id) {
-    uuid_t uuid;
-    uuid_generate_time(uuid);
+int prepare_maildir(char *user_email, char *workdir) {
+    char username[100];
+    strncchr(user_email, username, '@');
+    append_path(workdir, username, 1024);
 
-    char uuid_str[37];
-    uuid_unparse_lower(uuid, uuid_str);
-    strncpy(unique_id, uuid_str, 37);
+    int res_code;
+    res_code = mkdir_ifno(workdir);
+    if (res_code != 0) {
+        printf("Can not mkdir for %s\n", workdir);
+        return -1;
+    }
+    append_path(workdir, "Maildir", 1024);
+    res_code = mkdir_ifno(workdir);
+    if (res_code != 0) {
+        printf("Can not mkdir for %s\n", workdir);
+        return -1;
+    }
+    append_path(workdir, "new", 1024);
+    res_code = mkdir_ifno(workdir);
+    if (res_code != 0) {
+        printf("Can not mkdir for %s\n", workdir);
+        return -1;
+    }
+
+    workdir[strlen(workdir) - 4] = '\0';
+    append_path(workdir, "tmp", 1024);
+    res_code = mkdir_ifno(workdir);
+    return res_code;
 }
 
 int save_maildir_for(SmtpMessage *msg, int index) {
@@ -456,8 +438,11 @@ int save_maildir_for(SmtpMessage *msg, int index) {
 
     char workdir_buf[1024];
     strcpy(workdir_buf, "/Users/maksimkislenko/Desktop/mail");
-    prepare_maildir(msg->recipients[0], workdir_buf);
-    strcat(workdir_buf, unique_id);
+    int res_code = prepare_maildir(msg->recipients[index], workdir_buf);
+    if (res_code != 0) {
+        return res_code;
+    }
+    append_path(workdir_buf, unique_id, 1024);
 
     FILE *mail_file = fopen(workdir_buf, "w");
     if (mail_file == NULL) {
@@ -489,26 +474,20 @@ int save_maildir_for(SmtpMessage *msg, int index) {
     }
 
     char subject[200];
-    int N = (int)(strchr(msg->message, '\n') - msg->message);
-    strncpy(subject, msg->message, N);
-    subject[N] = '\0';
+    strncchr(msg->message, subject, '\n');
     fprintf(mail_file, "Subject: %s\n", subject);
 
     fprintf(mail_file, "Content-Type: text/plain; charset=koi8-r\n");
     fprintf(mail_file, "Content-Transfer-Encoding: 8bit\n");
     fprintf(mail_file, "\n\n");
-    fprintf(mail_file, "%s\n\n", msg->message);
+    fprintf(mail_file, "%s\n", msg->message);
 
     fclose(mail_file);
 
     char new_name_buf[1024];
-    strcpy(new_name_buf, workdir_buf);
-    char *cursor = strstr(new_name_buf, unique_id);
-    if (*(cursor - 1) == '/') {
-        *(cursor - 2) = 'w';
-        *(cursor - 3) = 'e';
-        *(cursor - 4) = 'n';
-    }
-    int res_code = rename(workdir_buf, new_name_buf);
+    strncpy(new_name_buf, workdir_buf, 1024);
+    replace_path(new_name_buf, -2, "new");
+
+    res_code = rename(workdir_buf, new_name_buf);
     return res_code;
 }

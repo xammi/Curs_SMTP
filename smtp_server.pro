@@ -6,11 +6,13 @@ CONFIG -= qt
 SOURCES += \
     src/server.c \
     main.c \
-    src/smtp.c
+    src/smtp.c \
+    src/utils.c
 
 HEADERS += \
     inc/server.h \
-    inc/smtp.h
+    inc/smtp.h \
+    inc/utils.h
 
 DISTFILES += \
     userinfo.txt \

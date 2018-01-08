@@ -1,14 +1,7 @@
 #ifndef SMTP_H
 #define SMTP_H
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <string.h>
-#include <regex.h>
-
-#include <sys/stat.h>
-#include <uuid/uuid.h>
+#include "inc/utils.h"
 
 
 enum SmtpStatus {
@@ -40,8 +33,8 @@ char* set_sender(SmtpMessage *msg, char *sender);
 char* set_recipient(SmtpMessage *msg, char *recipient);
 char* append_message(SmtpMessage *msg, char *msgChunk);
 
-void create_unique_id(char *unique_id);
 int prepare_maildir(char *user_email, char *workdir);
+int save_maildir(SmtpMessage *msg);
 int save_maildir_for(SmtpMessage *msg, int index);
 
 
