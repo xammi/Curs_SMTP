@@ -8,9 +8,13 @@
 #include <sys/stat.h>
 #include <uuid/uuid.h>
 #include <regex.h>
+#include <libconfig.h>
 
-static int VERBOSE = 0;
+
+int VERBOSE;
 void set_verbose(int flag);
+
+config_t cfg;
 
 // strings
 void strpart(const char *src, char *dst, regmatch_t match);

@@ -1,8 +1,10 @@
 #include "inc/utils.h"
 
+extern int VERBOSE = 0;
 
 void set_verbose(int flag) {
     VERBOSE = flag;
+    printf("Verbose set: %d\n", flag);
 }
 
 void strpart(const char *src, char *dst, regmatch_t match) {

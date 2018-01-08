@@ -24,7 +24,12 @@ void destroy_states(SmtpState* states) {
 }
 
 void handle_welcome(SmtpState *state, char *output) {
-    strcpy(output, "220 smtp.maxim.ru ready\r\n");
+    const char *app_name;
+    config_lookup_string(&cfg, "smtp.name", &app_name);
+
+    strcpy(output, "220 ");
+    strcat(output, app_name);
+    strcat(output, " ready\r\n");
     state->status = READY;
 }
 
@@ -119,6 +124,7 @@ int handle_request(SmtpState *state, char *input, char *output) {
     else if (check_command("RSET", input) == 0) {
         if (state->msg != NULL) {
             destroy_message(state->msg);
+            state->msg = NULL;
         }
         state->status = READY;
         smtp_response(250, output);
@@ -126,6 +132,7 @@ int handle_request(SmtpState *state, char *input, char *output) {
     else if (check_command("QUIT", input) == 0) {
         if (state->msg != NULL) {
             destroy_message(state->msg);
+            state->msg = NULL;
         }
         smtp_response(221, output);
         return 1;
@@ -161,7 +168,13 @@ int handle_request(SmtpState *state, char *input, char *output) {
                 }
                 state->msg = make_message();
                 set_domain(state->msg, domain);
-                strncpy(output, "250-smtp.maxim.ru\r\n250-PIPELINING\r\n250-8BITMIME\r\n250-VRFY\r\n", 255);
+
+                const char *app_name;
+                config_lookup_string(&cfg, "smtp.name", &app_name);
+
+                strcpy(output, "250-");
+                strcat(output, app_name);
+                strcat(output, "\r\n250-PIPELINING\r\n250-8BITMIME\r\n250-VRFY\r\n");
                 state->status = NEED_SENDER;
             }
             else {
@@ -363,7 +376,9 @@ char* append_message(SmtpMessage *msg, char *msgChunk) {
 }
 
 int check_user(char *user_info, char *full_info) {
-    const char *info_file_name = "/Users/maksimkislenko/smtp_env/smtp_server/userinfo.txt";
+    const char *info_file_name;
+    config_lookup_string(&cfg, "smtp.userinfo", &info_file_name);
+
     FILE *info_file = fopen(info_file_name, "r");
     if (info_file == NULL) {
         printf("Can not open userinfo file!\n");
@@ -373,7 +388,7 @@ int check_user(char *user_info, char *full_info) {
 
     while (1) {
         int eof = fgets(info, 1024, info_file);
-        if (eof != NULL) {
+        if (eof != 0) {
             char *found = strstr(info, user_info);
             if (found != NULL) {
                 if (full_info != NULL) {
@@ -438,8 +453,11 @@ int save_maildir_for(SmtpMessage *msg, int index) {
     char unique_id[255];
     create_unique_id(unique_id);
 
+    char *maildir;
+    config_lookup_string(&cfg, "smtp.maildir", &maildir);
+
     char workdir_buf[1024];
-    strcpy(workdir_buf, "/Users/maksimkislenko/Desktop/mail");
+    strcpy(workdir_buf, maildir);
     int res_code = prepare_maildir(msg->recipients[index], workdir_buf);
     if (res_code != 0) {
         return res_code;
@@ -456,7 +474,10 @@ int save_maildir_for(SmtpMessage *msg, int index) {
     time_t now;
     time(&now);
 
-    fprintf(mail_file, "Received: by %s with SMTP; %s\n", "smtp.max.ru", asctime(localtime(&now)));
+    char *app_name;
+    config_lookup_string(&cfg, "smtp.name", &app_name);
+
+    fprintf(mail_file, "Received: by %s with SMTP; %s\n", app_name, asctime(localtime(&now)));
     fprintf(mail_file, "Message-Id: <%s>\n", unique_id);
     fprintf(mail_file, "From: <%s>\n", msg->sender);
     fprintf(mail_file, "To: <%s>\n", msg->recipients[index]);

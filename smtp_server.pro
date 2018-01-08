@@ -17,4 +17,9 @@ HEADERS += \
 DISTFILES += \
     conf/userinfo.txt \
     README.md \
-    conf/settings.txt
+    conf/settings.cfg
+
+macx: LIBS += -L/usr/local/Cellar/libconfig/1.7.2/lib/ -lconfig.11
+
+INCLUDEPATH += /usr/local/Cellar/libconfig/1.7.2/include
+DEPENDPATH += /usr/local/Cellar/libconfig/1.7.2/include
