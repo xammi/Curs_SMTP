@@ -1,6 +1,10 @@
 #include "inc/utils.h"
 
 
+void set_verbose(int flag) {
+    VERBOSE = flag;
+}
+
 void strpart(const char *src, char *dst, regmatch_t match) {
     int len = 0;
     if (match.rm_so >= 0) {

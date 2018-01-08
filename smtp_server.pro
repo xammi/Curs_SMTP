@@ -15,5 +15,6 @@ HEADERS += \
     inc/utils.h
 
 DISTFILES += \
-    userinfo.txt \
-    README.md
+    conf/userinfo.txt \
+    README.md \
+    conf/settings.txt

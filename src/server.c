@@ -101,8 +101,12 @@ int run_server(Server *server) {
     server->fds[0].events = POLLIN;
     server->active_clients = 1;
 
+    printf("Server started...\n");
+
     while (1) {
-        printf("Waiting on poll()...\n");
+        if (VERBOSE) {
+            printf("Waiting on poll()...\n");
+        }
 
         // block until IO operations
         int res_code = poll(server->fds, server->active_clients, server->timeout_msec);
@@ -162,12 +166,16 @@ int run_server(Server *server) {
 }
 
 int accept_clients(Server *server) {
-    printf("Listening socket is readable\n");
+    if (VERBOSE) {
+        printf("Listening socket is readable\n");
+    }
 
     while (1) {
         int new_fd = accept(server->listen_fd, NULL, NULL);
         if (new_fd >= 0) {
-            printf("New incoming connection - %d\n", new_fd);
+            if (VERBOSE) {
+                printf("New incoming connection - %d\n", new_fd);
+            }
 
             int new_index = server->active_clients;
             SmtpState *state = server->states + new_index;
@@ -198,14 +206,18 @@ int accept_clients(Server *server) {
 }
 
 int handle_client(Server *server, struct pollfd fd_wrap, SmtpState *state) {
-    printf("Descriptor %d is readable\n", fd_wrap.fd);
+    if (VERBOSE) {
+        printf("Descriptor %d is readable\n", fd_wrap.fd);
+    }
 
     char input_buf[2000];
     while (1) {
         int read_cnt = recv(fd_wrap.fd, input_buf, sizeof(input_buf), 0);
         if (read_cnt > 0) {
             input_buf[read_cnt] = '\0';
-            printf("%d bytes received\n", read_cnt);
+            if (VERBOSE) {
+                printf("%d bytes received\n", read_cnt);
+            }
         }
         else if (read_cnt < 0) {
             if (errno != EWOULDBLOCK) {
@@ -215,7 +227,9 @@ int handle_client(Server *server, struct pollfd fd_wrap, SmtpState *state) {
             break;
         }
         else {
-            printf("Connection closed by client\n");
+            if (VERBOSE) {
+                printf("Connection closed by client\n");
+            }
             return -1;
         }
     }

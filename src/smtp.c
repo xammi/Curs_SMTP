@@ -45,7 +45,9 @@ int check_regex(char *regex, char *src, char *param) {
     }
 
     strpart(src, param, matchedGroups[1]);
-    printf("Extracted %s\n", param);
+    if (VERBOSE) {
+        printf("Extracted %s\n", param);
+    }
 
     regfree(&regexObj);
     return 0;
