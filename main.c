@@ -12,8 +12,6 @@ int main(int argc, char *argv[]) {
         printf("Can not read config\n");
         return -1;
     }
-    int port = 9090;
-    config_lookup_int(&cfg, "server.port", &port);
 
     int max_clients = 100;
     config_lookup_int(&cfg, "server.max_clients", &max_clients);
@@ -26,6 +24,9 @@ int main(int argc, char *argv[]) {
         printf("malloc() failed\n");
         return -1;
     }
+
+    int port = 9090;
+    config_lookup_int(&cfg, "server.port", &port);
 
     int res_code = init_server(server, port);
     if (res_code < 0) {

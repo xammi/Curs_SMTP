@@ -7,7 +7,8 @@ SOURCES += \
     src/server.c \
     main.c \
     src/smtp.c \
-    src/utils.c
+    src/utils.c \
+    src/logger.c
 
 HEADERS += \
     inc/server.h \

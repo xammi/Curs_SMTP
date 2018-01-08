@@ -5,10 +5,12 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
-#include <sys/stat.h>
-#include <uuid/uuid.h>
 #include <regex.h>
 #include <libconfig.h>
+
+#include <sys/stat.h>
+
+#include <uuid/uuid.h>
 
 
 int VERBOSE;
