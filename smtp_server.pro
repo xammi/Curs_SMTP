@@ -19,6 +19,7 @@ HEADERS += \
 DISTFILES += \
     conf/userinfo.txt \
     README.md \
+    Makefile \
     conf/settings.cfg
 
 macx: LIBS += -L/usr/local/Cellar/libconfig/1.7.2/lib/ -lconfig.11
