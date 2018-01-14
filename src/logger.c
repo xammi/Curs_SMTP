@@ -21,23 +21,22 @@ int logger_loop(const char *log_file_name) {
         return 2;
     }
 
-    time_t now;
-    char buffer[256];
+    char buffer[512];
     buffer[0] = '\0';
 
+    printf("Logger cycle ready...\n");
     while(1) {
-        printf("Logger cycle ready...\n");
-
         int res_code = msgrcv(msg_queue, &buffer, sizeof(buffer), 0, 0);
-        if (res_code != 0) {
+        if (res_code < 0) {
             perror("msgrcv() failed");
             break;
         }
-        if (strcmp(buffer, "stop") == 0) {
+        if (strcmp(buffer, "Stop") == 0) {
             break;
         }
-        time(&now);
-        fprintf(log_file, "[%s] %s\n", asctime(localtime(now)), buffer);
+        char now[40];
+        formatted_now(now, 40);
+        fprintf(log_file, "[%s] %s\n", now, buffer);
     }
 
     fclose(log_file);
@@ -58,6 +57,7 @@ int write_log(const char *msg) {
         perror("msgget() failed");
         return 1;
     }
+
     int res_code = msgsnd(msg_queue, msg, strlen(msg), 0);
     if (res_code < 0) {
         perror("msgsnd() failed");
@@ -67,5 +67,9 @@ int write_log(const char *msg) {
 }
 
 int wait_logger() {
-    return write_log("Waiting for log...\n");
+    return write_log("Connecting to log");
+}
+
+int stop_logger() {
+    return write_log("Stop");
 }

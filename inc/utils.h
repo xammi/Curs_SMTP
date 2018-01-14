@@ -3,14 +3,15 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
 #include <string.h>
+
+#include <errno.h>
 #include <regex.h>
 #include <libconfig.h>
+#include <time.h>
 
 #include <sys/stat.h>
-#include  <sys/types.h>
-
+#include <sys/types.h>
 #include <uuid/uuid.h>
 
 
@@ -28,8 +29,10 @@ void append_path(char *path, const char *dir, int n);
 int replace_path(char *path, int pos, const char *new_dir);
 int mkdir_ifno(char *path);
 
-// uuid
+// uuid's
 void create_unique_id(char *unique_id);
 
+// timestamps
+void formatted_now(char *buffer, int n);
 
 #endif // UTILS_H

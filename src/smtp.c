@@ -1,5 +1,7 @@
 #include "inc/smtp.h"
-#include <time.h>
+#include "inc/logger.h"
+
+#include <assert.h>
 
 
 SmtpState* make_states(int amount) {
@@ -37,6 +39,7 @@ int check_regex(char *regex, char *src, char *param) {
     regex_t regexObj;
     int res_code = regcomp(&regexObj, regex, REG_EXTENDED | REG_ICASE);
     if (res_code != 0) {
+        write_log("Could not compile regex");
         printf("Could not compile regex %s\n", regex);
         return 1;
     }
@@ -45,11 +48,12 @@ int check_regex(char *regex, char *src, char *param) {
     char *cursor = src;
     res_code = regexec(&regexObj, cursor, 2, matchedGroups, 0);
     if (res_code != 0) {
+        write_log("No match found");
         printf("No match with %s\n", regex);
         return 1;
     }
 
-    strpart(src, param, matchedGroups[1]);
+    strpart(src, param, matchedGroups[1]); 
     if (VERBOSE) {
         printf("Extracted %s\n", param);
     }
@@ -346,7 +350,8 @@ char* set_recipient(SmtpMessage *msg, char *recipient) {
         msg->recipients = (char **) realloc(msg->recipients, sizeof(char *) * msg->rec_size);
 
         if (msg->recipients == NULL) {
-            printf("realloc() failed\n");
+            write_log("realloc() failed in set_recipient");
+            printf("realloc() failed in set_recipient\n");
             return NULL;
         }
     }
@@ -367,7 +372,8 @@ char* append_message(SmtpMessage *msg, char *msgChunk) {
         msg->message = (char *) realloc(msg->message, sizeof(char) * msg->msg_size);
 
         if (msg->message == NULL) {
-            printf("realloc() failed\n");
+            write_log("realloc() failed in append_message");
+            printf("realloc() failed in append_message\n");
             return NULL;
         }
     }
@@ -381,6 +387,7 @@ int check_user(char *user_info, char *full_info) {
 
     FILE *info_file = fopen(info_file_name, "r");
     if (info_file == NULL) {
+        write_log("Can not open userinfo file");
         printf("Can not open userinfo file!\n");
         return -1;
     }
@@ -413,8 +420,10 @@ int save_maildir(SmtpMessage *msg) {
     for (int I = 0; I < msg->rec_cnt; I++) {
         res_code = save_maildir_for(msg, I);
         if (res_code != 0) {
-            printf("Msg not delivered\n");
+            write_log("Message not saved on disk\n");
+            printf("Message not saved on disk\n");
         }
+        write_log("Message saved in maildir\n");
     }
     return 0;
 }
@@ -466,22 +475,23 @@ int save_maildir_for(SmtpMessage *msg, int index) {
 
     FILE *mail_file = fopen(workdir_buf, "w");
     if (mail_file == NULL) {
+        write_log("Can not open maildir file\n");
         printf("Can not open '%s'\n", workdir_buf);
         return -1;
     }
     fprintf(mail_file, "\n");
 
-    time_t now;
-    time(&now);
+    char now[40];
+    formatted_now(now, 40);
 
     char *app_name;
     config_lookup_string(&cfg, "smtp.name", &app_name);
 
-    fprintf(mail_file, "Received: by %s with SMTP; %s\n", app_name, asctime(localtime(&now)));
+    fprintf(mail_file, "Received: by %s with SMTP; %s\n", app_name, now);
     fprintf(mail_file, "Message-Id: <%s>\n", unique_id);
     fprintf(mail_file, "From: <%s>\n", msg->sender);
     fprintf(mail_file, "To: <%s>\n", msg->recipients[index]);
-    fprintf(mail_file, "Date: %s\n", asctime(localtime(&now)));
+    fprintf(mail_file, "Date: %s\n", now);
 
     if (msg->rec_cnt > 1) {
         fprintf(mail_file, "Cc: ");
@@ -512,5 +522,7 @@ int save_maildir_for(SmtpMessage *msg, int index) {
     replace_path(new_name_buf, -2, "new");
 
     res_code = rename(workdir_buf, new_name_buf);
+
+    write_log("Written maildir file\n");
     return res_code;
 }

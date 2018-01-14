@@ -1,6 +1,8 @@
 #include "inc/server.h"
 #include "inc/logger.h"
 
+#include <signal.h>
+
 
 int main_process() {
     int max_clients = 100;
@@ -34,14 +36,21 @@ int main_process() {
 
 int logger_process() {
     const char *log_file_name;
-    config_lookup_string(&cfg, "logger.path", log_file_name);
+    config_lookup_string(&cfg, "logger.path", &log_file_name);
 
     int res_code = logger_loop(log_file_name);
     return res_code;
 }
 
 
+void stop_handler(int s) {
+    stop_logger();
+}
+
+
 int main(int argc, char *argv[]) {
+    signal(SIGINT, stop_handler);
+
     if (argc >= 2) {
         if (strcmp(argv[1], "-v") == 0 || strcmp(argv[1], "--verbose") == 0) {
             set_verbose(1);
@@ -54,14 +63,11 @@ int main(int argc, char *argv[]) {
     }
 
     int pid = fork();
-    printf("Process ID: %d\n", getpid());
-
     if (pid == 0) {
-        sleep(2);
-        while (wait_logger() != 0) {
-            printf("Waiting for logger...\n");
-        }
+        sleep(1);
+        while (wait_logger() != 0) { sleep(1); }
         main_process();
+        stop_logger();
     }
     else {
         logger_process();

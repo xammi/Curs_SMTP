@@ -72,3 +72,13 @@ int replace_path(char *path, int pos, const char *new_dir) {
     }
     return 0;
 }
+
+void formatted_now(char *buffer, int n) {
+    time_t now;
+    struct tm *time_info;
+
+    time(&now);
+    time_info = localtime(&now);
+
+    strftime(buffer, n, "%Y-%m-%d %H:%M:%S", time_info);
+}

@@ -1,4 +1,6 @@
 #include "inc/server.h"
+#include "inc/logger.h"
+
 #include <assert.h>
 
 
@@ -89,6 +91,7 @@ int init_server(Server *server, int port) {
     if (res_code < 0) {
         return -1;
     }
+    write_log("Server ready to run");
     return 0;
 }
 
@@ -101,9 +104,11 @@ int run_server(Server *server) {
     server->fds[0].events = POLLIN;
     server->active_clients = 1;
 
+    write_log("Server started");
     printf("Server started...\n");
 
     while (1) {
+        write_log("Waiting for connections");
         if (VERBOSE) {
             printf("Waiting on poll()...\n");
         }
@@ -111,11 +116,13 @@ int run_server(Server *server) {
         // block until IO operations
         int res_code = poll(server->fds, server->active_clients, server->timeout_msec);
         if (res_code < 0) {
-            printf("poll() failed");
+            write_log("poll() failed");
+            printf("poll() failed\n");
             return -1;
         }
         else if (res_code == 0) {
-            printf("Timeout expired...\n");
+            write_log("Timeout expired");
+            printf("Timeout expired\n");
             return 0;
         }
 
@@ -166,6 +173,7 @@ int run_server(Server *server) {
 }
 
 int accept_clients(Server *server) {
+    write_log("Accepting clients");
     if (VERBOSE) {
         printf("Listening socket is readable\n");
     }
@@ -173,6 +181,7 @@ int accept_clients(Server *server) {
     while (1) {
         int new_fd = accept(server->listen_fd, NULL, NULL);
         if (new_fd >= 0) {
+            write_log("New incoming connection");
             if (VERBOSE) {
                 printf("New incoming connection - %d\n", new_fd);
             }
@@ -186,16 +195,19 @@ int accept_clients(Server *server) {
 
             int written_cnt = send(new_fd, welcome, strlen(welcome), 0);
             if (written_cnt < 0) {
+                write_log("send() failed with welcome seq");
                 printf("send() failed");
                 return -1;
             }
 
+            write_log("Welcome sent");
             server->fds[new_index].fd = new_fd;
             server->fds[new_index].events = POLLIN;
             server->active_clients += 1;
         }
         else {
             if (errno != EWOULDBLOCK) {
+                write_log("accept() failed");
                 printf("accept() failed\n");
                 return -1;
             }
@@ -206,6 +218,7 @@ int accept_clients(Server *server) {
 }
 
 int handle_client(Server *server, struct pollfd fd_wrap, SmtpState *state) {
+    write_log("Handling client");
     if (VERBOSE) {
         printf("Descriptor %d is readable\n", fd_wrap.fd);
     }
@@ -221,6 +234,7 @@ int handle_client(Server *server, struct pollfd fd_wrap, SmtpState *state) {
         }
         else if (read_cnt < 0) {
             if (errno != EWOULDBLOCK) {
+                write_log("recv() failed");
                 printf("recv() failed\n");
                 return -1;
             }
@@ -228,18 +242,26 @@ int handle_client(Server *server, struct pollfd fd_wrap, SmtpState *state) {
         }
         else {
             if (VERBOSE) {
+                write_log("Connection closed by client");
                 printf("Connection closed by client\n");
             }
             return -1;
         }
     }
 
+    write_log("Request:");
+    write_log(input_buf);
+
     char output_buf[1024];
     output_buf[0] = '\0';
     int need_close = handle_request(state, input_buf, output_buf);
 
+    write_log("Response:");
+    write_log(output_buf);
+
     int written_cnt = send(fd_wrap.fd, output_buf, strlen(output_buf), 0);
     if (written_cnt < 0) {
+        write_log("send() failed");
         printf("send() failed");
         return -1;
     }
