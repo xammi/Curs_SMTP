@@ -1,20 +1,12 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
-#include <sys/ipc.h>
-#include <sys/msg.h>
+#include "inc/logger.h"
 
 
-#ifdef LOGGER
+// logger_loop() executes in logger process
 
-int main(int argc, char *argv[]) {
-    const char *log_file_name = "/var/log/max_smtp.log";
-    if (argc >= 2) {
-        log_file_name = argv[1];
-    }
-    key_t key = ftok("/var", 'c');
-    if (key != 0) {
+int logger_loop(const char *log_file_name) {
+
+    key_t key = ftok("/tmp", 'S');
+    if (key < 0) {
         perror("ftok() failed");
         return 1;
     }
@@ -34,7 +26,7 @@ int main(int argc, char *argv[]) {
     buffer[0] = '\0';
 
     while(1) {
-        printf("Logger cycle ready ...\n");
+        printf("Logger cycle ready...\n");
 
         int res_code = msgrcv(msg_queue, &buffer, sizeof(buffer), 0, 0);
         if (res_code != 0) {
@@ -51,4 +43,29 @@ int main(int argc, char *argv[]) {
     fclose(log_file);
     return 0;
 }
-#endif
+
+
+// write_log() executes in main process
+
+int write_log(const char *msg) {
+    key_t key = ftok("/tmp", 'S');
+    if (key < 0) {
+        perror("ftok() failed");
+        return 1;
+    }
+    int msg_queue = msgget(key, 0644 | IPC_CREAT);
+    if (msg_queue < 0) {
+        perror("msgget() failed");
+        return 1;
+    }
+    int res_code = msgsnd(msg_queue, msg, strlen(msg), 0);
+    if (res_code < 0) {
+        perror("msgsnd() failed");
+        return 2;
+    }
+    return 0;
+}
+
+int wait_logger() {
+    return write_log("Waiting for log...\n");
+}

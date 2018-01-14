@@ -13,7 +13,8 @@ SOURCES += \
 HEADERS += \
     inc/server.h \
     inc/smtp.h \
-    inc/utils.h
+    inc/utils.h \
+    inc/logger.h
 
 DISTFILES += \
     conf/userinfo.txt \

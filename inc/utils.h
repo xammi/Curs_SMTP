@@ -9,6 +9,7 @@
 #include <libconfig.h>
 
 #include <sys/stat.h>
+#include  <sys/types.h>
 
 #include <uuid/uuid.h>
 
