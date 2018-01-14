@@ -31,12 +31,13 @@ int logger_loop(const char *log_file_name) {
             perror("msgrcv() failed");
             break;
         }
-        if (strcmp(buffer, "Stop") == 0) {
-            break;
-        }
         char now[40];
         formatted_now(now, 40);
         fprintf(log_file, "[%s] %s\n", now, buffer);
+
+        if (strcmp(buffer, "Stop") == 0) {
+            break;
+        }
     }
 
     fclose(log_file);

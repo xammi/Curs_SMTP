@@ -4,6 +4,8 @@
 #include <signal.h>
 
 
+Server *server;
+
 int main_process() {
     int max_clients = 100;
     config_lookup_int(&cfg, "server.max_clients", &max_clients);
@@ -11,7 +13,7 @@ int main_process() {
     int timeout_sec = 180;
     config_lookup_int(&cfg, "server.timeout_sec", &timeout_sec);
 
-    Server *server = make_server(max_clients, timeout_sec);
+    server = make_server(max_clients, timeout_sec);
     if (server == NULL) {
         printf("malloc() failed\n");
         return -1;
@@ -44,7 +46,9 @@ int logger_process() {
 
 
 void stop_handler(int s) {
-    stop_logger();
+    write_log("Stopping server");
+    printf("Stopping server\n");
+    stop_server(server);
 }
 
 
@@ -65,7 +69,10 @@ int main(int argc, char *argv[]) {
     int pid = fork();
     if (pid == 0) {
         sleep(1);
-        while (wait_logger() != 0) { sleep(1); }
+        while (wait_logger() != 0) {
+            sleep(1);
+            perror("wait_logger() failed");
+        }
         main_process();
         stop_logger();
     }

@@ -95,6 +95,12 @@ int init_server(Server *server, int port) {
     return 0;
 }
 
+int stop_server(Server *server) {
+    if (server != NULL) {
+        server->running = 0;
+    }
+}
+
 int run_server(Server *server) {
     assert(server);
     assert(server->listen_fd >= 0);
@@ -107,7 +113,8 @@ int run_server(Server *server) {
     write_log("Server started");
     printf("Server started...\n");
 
-    while (1) {
+    server->running = 1;
+    while (server->running) {
         write_log("Waiting for connections");
         if (VERBOSE) {
             printf("Waiting on poll()...\n");
