@@ -56,13 +56,14 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    int pid = 0; //fork();
-    if (pid == 0) {
-//        sleep(1);
-//        while (wait_logger() != 0) {
-//            sleep(1);
-//            perror("wait_logger() failed");
-//        }
+    int pid = fork();
+    printf("Process forked [%d]\n", getpid());
+    if (pid < 0) {
+        perror("fork() failed");
+    }
+    else if (pid == 0) {
+        sleep(1);
+        while (wait_logger() != 0) { sleep(1); perror("wait_logger() failed"); }
         main_process();
         stop_logger();
     }

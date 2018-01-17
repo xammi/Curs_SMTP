@@ -91,7 +91,7 @@ int init_server(Server *server, int port) {
     if (res_code < 0) {
         return -1;
     }
-    write_log("Server ready to run");
+    write_log("Server: ready to run");
     return 0;
 }
 
@@ -110,12 +110,12 @@ int run_server(Server *server) {
     server->fds[0].events = POLLIN;
     server->active_clients = 1;
 
-    write_log("Server started");
+    write_log("Server: started");
     printf("Server started...\n");
 
     server->running = 1;
     while (server->running) {
-        write_log("Waiting for connections");
+        write_log("Server: waiting for connections");
         if (VERBOSE) {
             printf("Waiting on poll()...\n");
         }
@@ -128,7 +128,7 @@ int run_server(Server *server) {
             return -1;
         }
         else if (res_code == 0) {
-            write_log("Timeout expired");
+            write_log("Server: timeout expired");
             printf("Timeout expired\n");
             return 0;
         }
@@ -145,6 +145,7 @@ int run_server(Server *server) {
 
             // unexpected event
             if (fd_wrap.revents != POLLIN) {
+                write_log("Error: revents");
                 printf("Error: revents == %i\n", fd_wrap.revents);
                 return -1;
             }
@@ -180,7 +181,7 @@ int run_server(Server *server) {
 }
 
 int accept_clients(Server *server) {
-    write_log("Accepting clients");
+    write_log("Server: accepting clients");
     if (VERBOSE) {
         printf("Listening socket is readable\n");
     }
@@ -188,7 +189,7 @@ int accept_clients(Server *server) {
     while (1) {
         int new_fd = accept(server->listen_fd, NULL, NULL);
         if (new_fd >= 0) {
-            write_log("New incoming connection");
+            write_log("Server: new incoming connection");
             if (VERBOSE) {
                 printf("New incoming connection - %d\n", new_fd);
             }
@@ -207,7 +208,7 @@ int accept_clients(Server *server) {
                 return -1;
             }
 
-            write_log("Welcome sent");
+            write_log("SMTP: welcome sent");
             server->fds[new_index].fd = new_fd;
             server->fds[new_index].events = POLLIN;
             server->active_clients += 1;
@@ -225,7 +226,7 @@ int accept_clients(Server *server) {
 }
 
 int handle_client(Server *server, struct pollfd fd_wrap, SmtpState *state) {
-    write_log("Handling client");
+    write_log("Server: handling client");
     if (VERBOSE) {
         printf("Descriptor %d is readable\n", fd_wrap.fd);
     }
@@ -249,21 +250,19 @@ int handle_client(Server *server, struct pollfd fd_wrap, SmtpState *state) {
         }
         else {
             if (VERBOSE) {
-                write_log("Connection closed by client");
+                write_log("Server: connection closed by client");
                 printf("Connection closed by client\n");
             }
             return -1;
         }
     }
 
-    write_log("Request:");
     write_log(input_buf);
 
     char output_buf[1024];
     output_buf[0] = '\0';
     int need_close = handle_request(state, input_buf, output_buf);
 
-    write_log("Response:");
     write_log(output_buf);
 
     int written_cnt = send(fd_wrap.fd, output_buf, strlen(output_buf), 0);

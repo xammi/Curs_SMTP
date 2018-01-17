@@ -79,9 +79,15 @@ int replace_path(char *path, int pos, const char *new_dir) {
 void formatted_now(char *buffer, int n) {
     time_t now;
     struct tm *time_info;
+    struct timeval tp;
 
+    gettimeofday(&tp, 0);
     time(&now);
     time_info = localtime(&now);
 
     strftime(buffer, n, "%Y-%m-%d %H:%M:%S", time_info);
+
+    char msec_str[5];
+    sprintf(msec_str, ".%d", tp.tv_usec / 1000);
+    strcat(buffer, msec_str);
 }

@@ -39,7 +39,7 @@ int check_regex(char *regex, char *src, char *param) {
     regex_t regexObj;
     int res_code = regcomp(&regexObj, regex, REG_EXTENDED | REG_ICASE);
     if (res_code != 0) {
-        write_log("Could not compile regex");
+        write_log("SMTP: could not compile regex");
         printf("Could not compile regex %s\n", regex);
         return 1;
     }
@@ -48,7 +48,7 @@ int check_regex(char *regex, char *src, char *param) {
     char *cursor = src;
     res_code = regexec(&regexObj, cursor, 2, matchedGroups, 0);
     if (res_code != 0) {
-        write_log("No match found");
+        write_log("SMTP: no match found");
         printf("No match with %s\n", regex);
         return 1;
     }
@@ -393,7 +393,7 @@ int check_user(char *user_info, char *full_info) {
 
     FILE *info_file = fopen(info_file_name, "r");
     if (info_file == NULL) {
-        write_log("Can not open userinfo file");
+        write_log("SMTP: can not open userinfo file");
         printf("Can not open userinfo file!\n");
         return -1;
     }
@@ -426,10 +426,10 @@ int save_maildir(SmtpMessage *msg) {
     for (int I = 0; I < msg->rec_cnt; I++) {
         res_code = save_maildir_for(msg, I);
         if (res_code != 0) {
-            write_log("Message not saved on disk\n");
+            write_log("SMTP: message not saved on disk");
             printf("Message not saved on disk\n");
         }
-        write_log("Message saved in maildir\n");
+        write_log("SMTP: message saved in maildir");
     }
     return 0;
 }
@@ -481,7 +481,7 @@ int save_maildir_for(SmtpMessage *msg, int index) {
 
     FILE *mail_file = fopen(workdir_buf, "w");
     if (mail_file == NULL) {
-        write_log("Can not open maildir file\n");
+        write_log("SMTP: can not open maildir file\n");
         printf("Can not open '%s'\n", workdir_buf);
         return -1;
     }
@@ -537,7 +537,7 @@ int save_maildir_for(SmtpMessage *msg, int index) {
 
     res_code = rename(workdir_buf, new_name_buf);
 
-    write_log("Written maildir file\n");
+    write_log("SMTP: written maildir file");
 //    printf("Maildir 5\n");
     return res_code;
 }

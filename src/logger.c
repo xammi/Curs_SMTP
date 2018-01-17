@@ -31,15 +31,24 @@ int logger_loop(const char *log_file_name) {
             perror("msgrcv() failed");
             break;
         }
+        int last_idx = strlen(buffer) - 1;
+        if (last_idx >= 0 && buffer[last_idx] == '\n') {
+            buffer[last_idx] = '\0';
+        }
+
         char now[40];
         formatted_now(now, 40);
         fprintf(log_file, "[%s] %s\n", now, buffer);
+        fflush(log_file);
+
+//        printf("[%s] %s\n", now, buffer);
 
         if (strcmp(buffer, "Stop") == 0) {
             break;
         }
     }
 
+    msgctl(msg_queue, IPC_RMID, NULL);
     fclose(log_file);
     return 0;
 }
@@ -48,8 +57,6 @@ int logger_loop(const char *log_file_name) {
 // write_log() executes in main process
 
 int write_log(const char *msg) {
-    return 0;
-
     key_t key = ftok("/tmp", 'S');
     if (key < 0) {
         perror("ftok() failed");
