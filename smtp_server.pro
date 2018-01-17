@@ -20,7 +20,8 @@ DISTFILES += \
     conf/userinfo.txt \
     README.md \
     Makefile \
-    conf/settings.cfg
+    conf/settings.cfg \
+    tests/python/as_user.py
 
 macx: LIBS += -L/usr/local/Cellar/libconfig/1.7.2/lib/ -lconfig.11
 

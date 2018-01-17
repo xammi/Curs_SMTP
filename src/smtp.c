@@ -66,6 +66,10 @@ int check_command(char *command, char *src) {
     return strncasecmp(src, command, strlen(command));
 }
 
+int check_contains(char *command, char *src) {
+    return strstr(src, command);
+}
+
 void smtp_response(int code, char *output) {
     char *response = "";
     if (code == 221) {
@@ -106,7 +110,7 @@ void smtp_response(int code, char *output) {
 
 int handle_request(SmtpState *state, char *input, char *output) {
     if (state->status == GET_DATA) {
-        if (check_command(".\r\n", input) == 0) {
+        if (check_command(".\r\n", input) == 0 || check_contains("\r\n.\r\n", input) != NULL) {
             int res_code = save_maildir(state->msg);
             if (res_code == 0) {
                 state->status = READY;
@@ -251,6 +255,7 @@ int handle_request(SmtpState *state, char *input, char *output) {
                 if (check_user(user_info, full_info) == 0) {
                     strcpy(output, "250 ");
                     strncat(output, full_info, 1020);
+                    strcat(output, "\r\n");
                 }
                 else {
                     smtp_response(550, output);
@@ -267,6 +272,7 @@ int handle_request(SmtpState *state, char *input, char *output) {
     else {
         smtp_response(500, output);
     }
+//    printf("%s %s", input, output);
     return 0;
 }
 
@@ -487,11 +493,15 @@ int save_maildir_for(SmtpMessage *msg, int index) {
     char *app_name;
     config_lookup_string(&cfg, "smtp.name", &app_name);
 
+//    printf("Maildir 1\n");
+
     fprintf(mail_file, "Received: by %s with SMTP; %s\n", app_name, now);
     fprintf(mail_file, "Message-Id: <%s>\n", unique_id);
     fprintf(mail_file, "From: <%s>\n", msg->sender);
     fprintf(mail_file, "To: <%s>\n", msg->recipients[index]);
     fprintf(mail_file, "Date: %s\n", now);
+
+//    printf("Maildir 2\n");
 
     if (msg->rec_cnt > 1) {
         fprintf(mail_file, "Cc: ");
@@ -506,9 +516,13 @@ int save_maildir_for(SmtpMessage *msg, int index) {
         fprintf(mail_file, "\n");
     }
 
+//    printf("Maildir 3\n");
+
     char subject[200];
     strncchr(msg->message, subject, '\n');
     fprintf(mail_file, "Subject: %s\n", subject);
+
+//    printf("Maildir 4\n");
 
     fprintf(mail_file, "Content-Type: text/plain; charset=koi8-r\n");
     fprintf(mail_file, "Content-Transfer-Encoding: 8bit\n");
@@ -524,5 +538,6 @@ int save_maildir_for(SmtpMessage *msg, int index) {
     res_code = rename(workdir_buf, new_name_buf);
 
     write_log("Written maildir file\n");
+//    printf("Maildir 5\n");
     return res_code;
 }

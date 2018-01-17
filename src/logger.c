@@ -48,6 +48,8 @@ int logger_loop(const char *log_file_name) {
 // write_log() executes in main process
 
 int write_log(const char *msg) {
+    return 0;
+
     key_t key = ftok("/tmp", 'S');
     if (key < 0) {
         perror("ftok() failed");

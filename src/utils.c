@@ -17,7 +17,10 @@ void strpart(const char *src, char *dst, regmatch_t match) {
 }
 
 void strncchr(const char *src, char *dst, char sep) {
-    int len = (int)(strchr(src, sep) - src);
+    int len = strlen(src);
+    if (strchr(src, sep) != NULL) {
+        len = (int)(strchr(src, sep) - src);
+    }
     strncpy(dst, src, len);
     dst[len] = '\0';
 }
