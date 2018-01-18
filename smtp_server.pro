@@ -19,7 +19,7 @@ HEADERS += \
 DISTFILES += \
     conf/userinfo.txt \
     README.md \
-    Makefile \
+    build/Makefile \
     conf/settings.cfg \
     tests/python/as_user.py
 

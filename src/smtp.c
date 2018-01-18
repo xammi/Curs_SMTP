@@ -67,7 +67,11 @@ int check_command(char *command, char *src) {
 }
 
 int check_contains(char *command, char *src) {
-    return strstr(src, command);
+    char *contain = strstr(src, command);
+    if (contain != NULL) {
+        return 1;
+    }
+    return 0;
 }
 
 void smtp_response(int code, char *output) {
@@ -110,7 +114,7 @@ void smtp_response(int code, char *output) {
 
 int handle_request(SmtpState *state, char *input, char *output) {
     if (state->status == GET_DATA) {
-        if (check_command(".\r\n", input) == 0 || check_contains("\r\n.\r\n", input) != NULL) {
+        if (check_command(".\r\n", input) == 0 || check_contains("\r\n.\r\n", input) == 1) {
             int res_code = save_maildir(state->msg);
             if (res_code == 0) {
                 state->status = READY;
@@ -149,7 +153,7 @@ int handle_request(SmtpState *state, char *input, char *output) {
         if (state->status == READY) {
             char domain[100];
 
-            if (check_regex("HELO ([a-zA-Z0-9\.]+)", input, domain) == 0) {
+            if (check_regex("HELO ([a-zA-Z0-9.]+)", input, domain) == 0) {
                 if (state->msg != NULL) {
                     destroy_message(state->msg);
                 }
@@ -170,7 +174,7 @@ int handle_request(SmtpState *state, char *input, char *output) {
         if (state->status == READY || state->status == NEED_SENDER) {
             char domain[100];
 
-            if (check_regex("EHLO ([a-zA-Z0-9\.]+)", input, domain) == 0) {
+            if (check_regex("EHLO ([a-zA-Z0-9.]+)", input, domain) == 0) {
                 if (state->msg != NULL) {
                     destroy_message(state->msg);
                 }
@@ -197,7 +201,7 @@ int handle_request(SmtpState *state, char *input, char *output) {
         if (state->status == NEED_SENDER) {
             char sender[100];
 
-            if (check_regex("MAIL FROM:<([a-zA-Z0-9\.@\-_]+)>", input, sender) == 0) {
+            if (check_regex("MAIL FROM:<([a-zA-Z0-9.@-_]+)>", input, sender) == 0) {
                 if (check_user(sender, NULL) == 0) {
                     set_sender(state->msg, sender);
                     smtp_response(250, output);
@@ -219,7 +223,7 @@ int handle_request(SmtpState *state, char *input, char *output) {
         if (state->status == NEED_RECIPIENT || state->status == NEED_DATA) {
             char recipient[100];
 
-            if (check_regex("RCPT TO:<([a-zA-Z0-9\.@\-_]+)>", input, recipient) == 0) {
+            if (check_regex("RCPT TO:<([a-zA-Z0-9.@-_]+)>", input, recipient) == 0) {
 
                 if (state->msg->rec_cnt < 10) {
                     set_recipient(state->msg, recipient);
@@ -250,7 +254,7 @@ int handle_request(SmtpState *state, char *input, char *output) {
     else if (check_command("VRFY", input) == 0) {
         if (state->status == READY || state->status == NEED_SENDER) {
             char user_info[255];
-            if (check_regex("VRFY ([a-zA-Z0-9\.@\-_]+)", input, user_info) == 0) {
+            if (check_regex("VRFY ([a-zA-Z0-9.@-_]+)", input, user_info) == 0) {
                 char full_info[1024];
                 if (check_user(user_info, full_info) == 0) {
                     strcpy(output, "250 ");
@@ -400,8 +404,8 @@ int check_user(char *user_info, char *full_info) {
     char info[1024];
 
     while (1) {
-        int eof = fgets(info, 1024, info_file);
-        if (eof != 0) {
+        char *eof = fgets(info, 1024, info_file);
+        if (eof != NULL) {
             char *found = strstr(info, user_info);
             if (found != NULL) {
                 if (full_info != NULL) {
@@ -468,7 +472,7 @@ int save_maildir_for(SmtpMessage *msg, int index) {
     char unique_id[255];
     create_unique_id(unique_id);
 
-    char *maildir;
+    const char *maildir;
     config_lookup_string(&cfg, "smtp.maildir", &maildir);
 
     char workdir_buf[1024];
@@ -490,7 +494,7 @@ int save_maildir_for(SmtpMessage *msg, int index) {
     char now[40];
     formatted_now(now, 40);
 
-    char *app_name;
+    const char *app_name;
     config_lookup_string(&cfg, "smtp.name", &app_name);
 
 //    printf("Maildir 1\n");

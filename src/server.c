@@ -95,7 +95,7 @@ int init_server(Server *server, int port) {
     return 0;
 }
 
-int stop_server(Server *server) {
+void stop_server(Server *server) {
     if (server != NULL) {
         server->running = 0;
     }

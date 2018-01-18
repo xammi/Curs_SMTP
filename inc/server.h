@@ -27,7 +27,7 @@ void destroy_server(Server *server);
 
 int init_server(Server *server, int port);
 int run_server(Server *server);
-int stop_server(Server *server);
+void stop_server(Server *server);
 
 int accept_clients(Server *server);
 int handle_client(Server *server, struct pollfd fd_wrap, SmtpState *state);

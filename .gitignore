@@ -1,2 +1,6 @@
 *.pro.user*
 *_ex.c
+*.o
+build/smtp_server
+build/*.cfg
+build/*.txt
