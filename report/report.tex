@@ -3,7 +3,7 @@
 \input{header.tex}
 
 
-\title{Рассчётно-пояснительная записка по курсовой работе "Разработка почтового сервера" \textnumero 1}
+\title{Рассчётно-пояснительная записка по курсовой работе "Разработка почтового сервера"}
 \author{Кисленко Максим Германович}
 
 \begin{document}
@@ -12,6 +12,8 @@
 
 \tableofcontents
 
+\cleardoublepage
+\phantomsection
 \addcontentsline{toc}{chapter}{Введение}
 \chapter*{Введение}
 
@@ -78,8 +80,16 @@
 
 % Отмечу, что за исключения целей типа \textit{all}, \textit{install}, \textit{clean}, \textit{tests}, все имена целей в файле систем сборки \textit{make} обычно совпадают с именами файлов (такой вот низкоуровневый инструмент). То есть вместо цели \textit{lexer} следует использовать цель \textit{src/lexer.c}.
 
+\addcontentsline{toc}{chapter}{Выводы}
+\chapter*{Выводы}
 
-\section{Основные функции программы}
+Результаты, что сделано и что выполнено.
+
+
+\cleardoublepage
+\phantomsection
+\addcontentsline{toc}{chapter}{Приложение 1. Основные функции программы}
+\chapter*{Приложение 1. Основные функции программы}
 
 % Весь это раздел сгеренерировал doxygen из части комментированных исходников программы. В файле конфигурации \textbf{doxyggen.cfg} был отключён параметр \textbf{HAVE\_DOT}, поскольку для рисования графов вызовов используется \textit{cflow}.
 
@@ -97,7 +107,10 @@
 % \input{include/server_8c.tex}
 
 
-\section{Графы вызова функций}
+\cleardoublepage
+\phantomsection
+\addcontentsline{toc}{chapter}{Приложение 2. Графы вызова функций}
+\chapter*{Приложение 2. Графы вызова функций}
 
 % Поскольку функций много, графы вызовов разбиты на два рисунка. На рис.~\ref{fig:cflow01} показаны основные функции, на рис.~\ref{fig:cflow02}~-- функции обработки команд. Файл \textbf{cflow.ignore} содержит список функций (точнее, шабловнов поиска), использыемых программой \textit{grep} для удаления малоинтересных стандартных функций\footnote{Функции по работе с сокетами, ipc и привилегиями к малоинтересным ни в коем случае не относятся.}.
 
@@ -106,11 +119,5 @@
 % \begin{figure} \centering \includegraphics[width=\textwidth]{include/cflow02_dot.pdf} \caption{Граф вызовов, функции обработки команд} \label{fig:cflow02} \end{figure}
 
 % Графы созданы с помощью \textit{cflow}, \textit{cflow2dot}, \textit{dot}.
-
-\addcontentsline{toc}{chapter}{Выводы}
-\chapter*{Выводы}
-
-Результаты, что сделано и что выполнено.
-
 
 \end{document}
