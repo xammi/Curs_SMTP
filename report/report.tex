@@ -57,6 +57,18 @@
 
 \chapter{Аналитический раздел}
 
+\section{Предметная область}
+
+В результате проведённого исследования были выделены следующие сущности предметной области (рисунок ~\ref{fig:entities}). Здесь и далее все диаграммы выполняются в нотациях UML, если иное не указано явно.
+
+\begin{figure}
+\centering
+\includegraphics[width=\textwidth]{diagramms/entities.png}
+\caption{Основные сущности предметной области}
+\label{fig:entities}
+\end{figure}
+
+
 \section{Сценарии работы с SMTP-сервером}
 
 \section{Достоинства и недостатки реализуемого сервера}
@@ -68,11 +80,83 @@
 
 \section{Архитектура сервера}
 
+Реализация почтового сервера разделена на несколько функциональных модулей с собственными заголовочными файлами. В server.h и server.c выполняется установка соединений с клиентами, получение от них текстовых команд и вызов SMTP-парсера для формирования ответа. Он также хранит для каждого из соединений запись о текущем состоянии (это связано с тем, что SMTP является stateful-протоколом). Сервер является однопроцессным, однопоточным и работает с сокетами клиентов в режиме неблокирующего ввода-вывода. Для получения событий о готовности ввода-вывода применяется системный вызов \textit{poll()}. Подобная архитектура применяется в http-серверах nginx (с процессами-воркерами для обработки запросов) и node.js.
+
+Опишем алгоритм работы сервера с помощью python-подобного псевдокода. Пусть \textit{fd} будет основным сокетом, на котором сервер сделал вызовы \textit{bind()} и \textit{listen()}, тогда:
+
+\begin{verbatim}
+sockets = []
+sockets.append({fd: fd, events: POLLIN})
+active_cnt = 1
+
+while True:
+    code = poll(sockets, active_cnt, timeout)
+    if code == 0:
+        # timeout expired
+    	return 0
+
+    quit = []
+    for sock in sockets:
+        if sock == fd:
+        	accept_new_conns(fd)
+        else:
+        	state = get_state(sock)
+            code = handle_known_conn(state) 
+            if code < 0:
+                # received QUIT command
+                quit.append(sock)
+
+    if quit:
+        for sock in quit:
+            sockets.remove(sock)
+\end{verbatim}
+
+Здесь и далее в листингах не показываются обработки ошибок, только основные действия. Чтобы принять новые соединения сервер выполняет внутри функции \textit{accept_new_conns} системный вызов \textit{accept}.
+
+\begin{verbatim}
+while True:
+    new_sock = accept(fd)
+    if new_sock < 0:
+        return new_sock
+    else:
+        create_state(new_sock)
+        send(new_sock, 'Welcome!')
+
+        sockets.append(new_sock)
+        active_cnt += 1
+\end{verbatim}
+
+Если поступают данные от клиента, то сервер вызовет \textit{handle_new_conn}, предварительно восстановив состояние этого клиента по сокету. Для получения данных используется вызов \textit{recv}. Для анализа полученных от клиента данных функция SMTP-парсера \textit{handle_request}.
+
+\begin{verbatim}
+input = ''
+
+while True:
+    chunk = recv(sock, input, 1000)
+    if chunk:
+        input += chunk
+    else:
+        break
+
+resp = handle_request(input)
+send(sock, resp)
+
+\end{verbatim}
+
 % Рис.~\ref{fig:fsm} нагенерил самодельный \textit{fsm2dot} из \textit{autogen} и \textit{dot2tex} на пару \textit{dot}. Никто не мешает изменить параметры типа \textit{rankdir} прямо в \textit{fsm2dot}, если он будет лучше смотреться, например, сверху-вниз.
 
 % \begin{figure} \centering \includegraphics[width=\textwidth]{include/server_def_dot.pdf} \caption{Состояния сервера} \label{fig:fsm} \end{figure}
 
 \section{Обработка команд протокола}
+
+Далее SMTP-парсер, анализирует полученную строку и в зависимости от неё и текущего состояния конкретного клиента выбирает выполняемое действие, новое состояние и нужный ответ клиенту. Парсер реализован в отдельном модуле из файлов smtp.h и smtp.c. По сути он представляет собой конечный автомат и может быть описан диаграммой состояний переходов (рисунок ~\ref{fig:smtp_fsm}).
+
+\begin{figure}
+\centering
+\includegraphics[width=\textwidth]{diagramms/smtp_fsm.png}
+\caption{Конечный автомат протокола SMTP}
+\label{fig:smtp_fsm}
+\end{figure}
 
 % \begin{description} \item[Команда выхода из сеанса] \input{include/re_cmd_quit_re.tex} \item[Команда передачи имени пользователя] \input{include/re_cmd_user_re.tex} \end{description}
 
