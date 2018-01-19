@@ -44,13 +44,22 @@ int logger_process() {
 
 
 int main(int argc, char *argv[]) {
+    const char *config_path = "settings.cfg";
+
     if (argc >= 2) {
-        if (strcmp(argv[1], "-v") == 0 || strcmp(argv[1], "--verbose") == 0) {
+        if (strcmp(argv[1], "--verbose") == 0) {
             set_verbose(1);
+        }
+        else if (strcmp(argv[1], "--version") == 0) {
+            printf("Max's SMTP server: v1.0.0");
+            return 0;
+        }
+        else {
+            config_path = argv[1];
         }
     }
     config_init(&cfg);
-    if (! config_read_file(&cfg, "settings.cfg")) {
+    if (! config_read_file(&cfg, config_path)) {
         printf("Can not read config\n");
         config_destroy(&cfg);
         return -1;

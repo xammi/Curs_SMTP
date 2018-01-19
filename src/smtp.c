@@ -153,7 +153,7 @@ int handle_request(SmtpState *state, char *input, char *output) {
         if (state->status == READY) {
             char domain[100];
 
-            if (check_regex("HELO ([a-zA-Z0-9.]+)", input, domain) == 0) {
+            if (check_regex("HELO (([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,6})", input, domain) == 0) {
                 if (state->msg != NULL) {
                     destroy_message(state->msg);
                 }
@@ -174,7 +174,7 @@ int handle_request(SmtpState *state, char *input, char *output) {
         if (state->status == READY || state->status == NEED_SENDER) {
             char domain[100];
 
-            if (check_regex("EHLO ([a-zA-Z0-9.]+)", input, domain) == 0) {
+            if (check_regex("EHLO (([A-z0-9]([A-z0-9\-]{0,61}[A-z0-9])?\.)+[A-z]{2,6})", input, domain) == 0) {
                 if (state->msg != NULL) {
                     destroy_message(state->msg);
                 }
@@ -201,7 +201,7 @@ int handle_request(SmtpState *state, char *input, char *output) {
         if (state->status == NEED_SENDER) {
             char sender[100];
 
-            if (check_regex("MAIL FROM:<([a-zA-Z0-9.@-_]+)>", input, sender) == 0) {
+            if (check_regex("MAIL FROM:<([-A-z0-9.]+@([A-z0-9][-A-z0-9]+\.)+[A-z]{2,4})>", input, sender) == 0) {
                 if (check_user(sender, NULL) == 0) {
                     set_sender(state->msg, sender);
                     smtp_response(250, output);
@@ -223,7 +223,7 @@ int handle_request(SmtpState *state, char *input, char *output) {
         if (state->status == NEED_RECIPIENT || state->status == NEED_DATA) {
             char recipient[100];
 
-            if (check_regex("RCPT TO:<([a-zA-Z0-9.@-_]+)>", input, recipient) == 0) {
+            if (check_regex("RCPT TO:<([-A-z0-9.]+@([A-z0-9][-A-z0-9]+\.)+[A-z]{2,4})>", input, recipient) == 0) {
 
                 if (state->msg->rec_cnt < 10) {
                     set_recipient(state->msg, recipient);
@@ -254,7 +254,7 @@ int handle_request(SmtpState *state, char *input, char *output) {
     else if (check_command("VRFY", input) == 0) {
         if (state->status == READY || state->status == NEED_SENDER) {
             char user_info[255];
-            if (check_regex("VRFY ([a-zA-Z0-9.@-_]+)", input, user_info) == 0) {
+            if (check_regex("VRFY ([A-z0-9.@-_]+)", input, user_info) == 0) {
                 char full_info[1024];
                 if (check_user(user_info, full_info) == 0) {
                     strcpy(output, "250 ");

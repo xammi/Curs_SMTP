@@ -41,13 +41,13 @@ class SMTP_Client(TCP_Client):
         test_smtp_output('welcome', self.receive(), ['220', 'ready'])
         return self
 
-    def hello(self, cmd='HELO', name='max'):
+    def hello(self, cmd='HELO', name='max.ru'):
         return self.send_and_get('{} {}'.format(cmd, name))
 
     def quit(self, cmd='QUIT'):
         return self.send_and_get('{}'.format(cmd))
 
-    def hello_extended(self, cmd='EHLO', name='max'):
+    def hello_extended(self, cmd='EHLO', name='max.ru'):
         return self.send_and_get('{} {}'.format(cmd, name))
 
     def mail_from(self, cmd='MAIL FROM', email='<chesalka@mail.ru>'):
