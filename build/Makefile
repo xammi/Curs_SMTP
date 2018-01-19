@@ -5,11 +5,14 @@
 ####### Compiler, tools and options
 
 CC	    = /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang
-CXX	   = /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++
 CFLAGS	= -pipe -g -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.13.sdk -mmacosx-version-min=10.7 -Wall -W -fPIC
-CXXFLAGS      = -pipe -stdlib=libc++ -g -std=gnu++11 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.13.sdk -mmacosx-version-min=10.7 -Wall -W -fPIC
 INCPATH       = -I../ -I/usr/local/Cellar/libconfig/1.7.2/include
-DEL_FILE      = rm -f
+DISTNAME      = smtp_server1.0.0
+DESTDIR       = ../build
+LINK	  = /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++
+LFLAGS	= -headerpad_max_install_names -stdlib=libc++ -Wl,-syslibroot,/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.13.sdk -mmacosx-version-min=10.7
+LIBS	  = $(SUBLIBS) -L/usr/local/Cellar/libconfig/1.7.2/lib/ -lconfig.11
+
 CHK_DIR_EXISTS= test -d
 MKDIR	 = mkdir -p
 COPY	  = cp -f
@@ -24,13 +27,6 @@ DEL_DIR       = rmdir
 MOVE	  = mv -f
 TAR	   = tar -cf
 COMPRESS      = gzip -9f
-DISTNAME      = smtp_server1.0.0
-DESTDIR       = ../build
-LINK	  = /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++
-LFLAGS	= -headerpad_max_install_names -stdlib=libc++ -Wl,-syslibroot,/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.13.sdk -mmacosx-version-min=10.7
-LIBS	  = $(SUBLIBS) -L/usr/local/Cellar/libconfig/1.7.2/lib/ -lconfig.11
-AR	    = /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ar cq
-RANLIB	= /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ranlib -s
 SED	   = sed
 STRIP	 =
 

@@ -68,9 +68,6 @@
 \label{fig:entities}
 \end{figure}
 
-
-\section{Сценарии работы с SMTP-сервером}
-
 \section{Достоинства и недостатки реализуемого сервера}
 
 \section{Программы-аналоги}
@@ -246,11 +243,136 @@ int res_code = msgsnd(msg_queue, msg, strlen(msg), 0);
 
 % Нужно отметьть, что символ <<\_>> необходимо оформлять как <<\textbackslash\_>>.
 
+\section{Используемые технологии и аппаратура}
+
+Разработанное ПО разрабатывалось и тестировалось на компьютере Macbook PRO модели 2015 года с процессором Intel Core i5, 8 GB оперативной памяти и 128 GB SSD, под управлением операционной системы MacOS High Sierra 10.13.
+
+Для того чтобы собрать исполнемый файл из исходных текстов необходимо наличие в системе GNU make (>= 3.81) и компилятора языка си (>= llvm 9.0, если установлен clang и >= 4.2.1, если используется gcc). В проекте также приложена конфигурация gmake (файл smtp_server.pro), который использовался для быстрого запуска при разработке. Запущенный сервер пишет в консоль идентификатор собственного процесса, процесса логирования и строку "Server started". Подробнее про сборку в следующей секции.
+
+Для чтения файла конфигурации сервер использует библиотеку libconfig версии >= 1.7.2, которая также должна быть установлена в системе для корректного запуска. Путь к заголовочным файлам библиотеки нобходимо явно указать в Makefile в переменной \textit{INCPATH}. Значение по умолчанию - /usr/local/Cellar.
+
+Чтобы убедиться в корректной работе собранного сервера, можно запустить системные тесты. Они написаны на языке python и требуют версию интерпретатора >= 3.4. Для запуска достаточно просто выполнить \textit{python3 as_user.py host port}, заменив параметры командной строки на те хост и порт, на которых запущен сервер. Подробнее про тестирование ниже.
+
+\section{Сборка программы}
+
+Сборка осуществляется с помощью утилиты make. Конфигурационный файл с описанием целей приложен в каталоге проекта /build. Для его исполнения достаточно команды \textit{make all}.
+
+Помимо создания исполняемого файла, Makefile прикладывает файлы конфигурации. Для очистки предусмотрена цель \textit{make clean}.
+
 \section{Конфигурация в отдельном файле}
+
+Пример файла конфигурации для почтового сервера в conf/settings.cfg. Содержимое поделено на три секции - настройки для собственно сервера, smtp-парсера и для процесса логирования.
+
+\begin{verbatim}
+version = "1.0";
+
+server = {
+    port = 9091;
+    timeout_sec = 200;
+    max_clients = 100;
+};
+
+smtp = {
+    name = "smtp.maxim.ru";
+    maildir = "/Users/maksimkislenko/smtp_env/mails";
+    userinfo = "/Users/maksimkislenko/smtp_env/smtp_server/conf/userinfo.txt";
+};
+
+logger = {
+    path = "/Users/maksimkislenko/smtp_env/log.txt";
+};
+
+\end{verbatim}
+
+Чтение и разбор файла конфигурации осуществляет библиотека libconfig при запуске основного процесса. По умолчанию ищется файл settings.cfg в текущей директории. Однако можно поменять это поведение передав параметром командной строки путь к собственным настройкам. Также есть возможность выводить доп. информацию в терминал - для этого при запуске достаточно указать \textit{--verbose}.
 
 \section{Автоматические тесты}
 
-\section{Сборка программы}
+Тесты сгруппированы в сценарии. Каждый состоит из одного соединения и нескольких посылаемых команд. Полученные ответы сравниваются с ожидаемыми (ищутся вхождения ключевых слов и необходимый smtp-код). Если хоть одно из вхождений не найдено, будет сгенерировано исключение с информативным сообщением.
+
+Код сценариев приведен в следующем листинге:
+
+\begin{verbatim}
+def script_1():
+    print '=== Script 1 started (Test connection - HELO, QUIT, then write) ==='
+
+    with SMTP_Client(HOST, PORT) as client:
+        test_smtp_output('hello', client.hello(), ['250', 'ok'])
+        test_smtp_output('quit', client.quit(), ['221', 'closing'])
+        try:
+            client.hello()
+        except Exception as e:
+            test_smtp_output('after close', str(e), ['errno 54', 'connection reset'])
+    print ''
+
+def script_2():
+    print '=== Script 2 started (Test EHLO, RSET, NOOP commands) ==='
+
+    with SMTP_Client(HOST, PORT) as client:
+        test_smtp_output('1st ehlo', client.hello_extended(), ['250-', 'pipelining', '8bitmime', 'vrfy'])
+        test_smtp_output('1st noop', client.no_operation(), ['250', 'ok'])
+        test_smtp_output('rset', client.reset(), ['250', 'ok'])
+        test_smtp_output('hello', client.hello(), ['250', 'ok'])
+        test_smtp_output('2nd noop', client.no_operation(), ['250', 'ok'])
+        test_smtp_output('2nd ehlo', client.hello_extended(), ['250-', 'pipelining', '8bitmime', 'vrfy'])
+        test_smtp_output('quit', client.quit(), ['221', 'closing'])
+    print ''
+
+def script_3():
+    print '=== Script 3 started === (Test ordinal mailing)'
+
+    with SMTP_Client(HOST, PORT) as client:
+        test_smtp_output('hello', client.hello(), ['250', 'ok'])
+        test_smtp_output('sender', client.mail_from(), ['250', 'ok'])
+        test_smtp_output('receiver', client.recipient_to(), ['250', 'ok'])
+        test_smtp_output('data', client.data(), ['250', 'ok'])
+        test_smtp_output('quit', client.quit(), ['221', 'closing'])
+    print ''
+
+def script_4():
+    print '=== Script 4 started === (Test many recipients)'
+
+    with SMTP_Client(HOST, PORT) as client:
+        test_smtp_output('hello', client.hello(), ['250', 'ok'])
+        test_smtp_output('sender', client.mail_from(), ['250', 'ok'])
+        
+        test_smtp_output('receiver', client.recipient_to(email='<test1@mail.ru>'), ['250', 'ok'])
+        test_smtp_output('receiver', client.recipient_to(email='<test2@mail.ru>'), ['250', 'ok'])
+        test_smtp_output('receiver', client.recipient_to(email='<test3@mail.ru>'), ['250', 'ok'])
+        
+        test_smtp_output('data', client.data(), ['250', 'ok'])
+        test_smtp_output('quit', client.quit(), ['221', 'closing'])
+    print ''
+
+def script_5():
+    print '=== Script 5 started === (Errors 5xx)'
+
+    with SMTP_Client(HOST, PORT) as client:
+        test_smtp_output('mail_from before hello', client.mail_from(), ['503', 'bad', 'sequence'])
+        test_smtp_output('invalid hello', client.hello(cmd='HELLO'), ['500', 'invalid', 'command'])
+        test_smtp_output('hello', client.hello(), ['250', 'ok'])
+
+        test_smtp_output('invalid sender argument', client.mail_from(email='test'), ['501', 'invalid', 'argument'])
+        test_smtp_output('unknown sender', client.mail_from(email='<test@mail.ru>'), ['550', 'unknown', 'sender'])
+        test_smtp_output('sender', client.mail_from(), ['250', 'ok'])
+        test_smtp_output('hello after mail_from', client.hello(), ['503', 'bad', 'sequence'])
+        
+        test_smtp_output('no receiver', client.recipient_to(email=''), ['501', 'invalid', 'argument'])
+        test_smtp_output('quit', client.quit(), ['221', 'closing'])
+    print ''
+
+def script_6():
+    print '=== Script 6 started === (Verify command)'
+
+    with SMTP_Client(HOST, PORT) as client:
+        test_smtp_output('hello', client.hello(), ['250', 'ok'])
+        test_smtp_output('verify known', client.verify(), ['250', 'chesalin', 'denis', '<chesalka@mail.ru>'])
+        test_smtp_output('verify unknown', client.verify(email_part='test@mail.ru'), ['550', 'unknown', 'sender'])
+        test_smtp_output('quit', client.quit(), ['221', 'closing'])
+    print ''
+\end{verbatim}
+
+В результате запуска успешно-пройденные тесты отмечаются плюсами. Ошибки отмечаются минусами.
 
 % Сборка программы описана в файле \textit{Makefile} системы сборки \textit{make}. Рис.~\ref{fig:make} нагенерили самодельные \textit{makesimple} и \textit{makefile2dot}, а также \textit{dot2tex} и \textit{dot}.
 
@@ -261,7 +383,7 @@ int res_code = msgsnd(msg_queue, msg, strlen(msg), 0);
 \addcontentsline{toc}{chapter}{Выводы}
 \chapter*{Выводы}
 
-Результаты, что сделано и что выполнено.
+Результаты, что сделано и чему научился.
 
 
 \cleardoublepage
