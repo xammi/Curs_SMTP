@@ -93,14 +93,14 @@ while True:
     code = poll(sockets, active_cnt, timeout)
     if code == 0:
         # timeout expired
-    	return 0
+        return 0
 
     quit = []
     for sock in sockets:
         if sock == fd:
-        	accept_new_conns(fd)
+            accept_new_conns(fd)
         else:
-        	state = get_state(sock)
+            state = get_state(sock)
             code = handle_known_conn(state) 
             if code < 0:
                 # received QUIT command
@@ -138,8 +138,9 @@ while True:
     else:
         break
 
-resp = handle_request(input)
-send(sock, resp)
+if input:
+    resp = handle_request(input)
+    send(sock, resp)
 
 \end{verbatim}
 
@@ -157,6 +158,29 @@ send(sock, resp)
 \caption{Конечный автомат протокола SMTP}
 \label{fig:smtp_fsm}
 \end{figure}
+
+На диаграмме красным цветом выделен путь по графу, который соответствует обычной отправке письма с одним получателем. Синим - другие возможные переходы. На диаграмме также не показано несколько команд, которые не меняют состояния - это QUIT (команда серверу о закрытии соединения), NOOP (команда ничего не делать - no operation) и VRFY (доступна для вызова в состояниях READY и NEED_SENDER).
+
+Некоторые из команд используют параметры. Рассмотрим их подробнее:
+\begin{itemize}
+	\item \textit{HELO domain} и \textit{EHLO domain}, где domain определяется с помощью регулярного выражения \textit{([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,6})}. Команды инициируют smtp-сессию. В ответ на EHLO ожидается развернутый ответ со списком поддерживаемых расширений;
+	\item \textit{MAIL FROM: <email>} и \textit{RCPT TO: <email>}, где email определяется с помощью регулярного выражения \textit{([-A-z0-9.]+@([A-z0-9][-A-z0-9]+\.)+[A-z]{2,4})}. Команды задают отправителя и получателя. Получателей может быть несколько.
+	\item \textit{VRFY email_part}, где email_part определяется по \textit{([A-z0-9.@-_]+)}. Команда возвращает информацию по известным для сервера пользователям в формате <полное имя> <email>, в email-е которых встретилась передаваемая параметром последовательность символов.
+\end{itemize}
+
+На команды клиента сервер отвечает предопределенными в спецификации SMTP кодами. Далее приведем список поддерживаемых команд.
+\begin{itemize}
+	\item 221 Closing transmission channel - закрытие соединения по инициативе сервера;
+	\item 250 OK - команда корректна и принята к исполнению;
+	\item 354 Start mail input; end with <CRLF>.<CRLF> - ответ при переходе в состояние GET_DATA;
+	\item 451 Requested action aborted: error in processing - ошибки при выполнении дисковых операций с maildir;
+	\item 455 Server unable to accommodate parameters - возвращается в случае, когда получателей больше максимума;
+	\item 500 Invalid command - неизвестная команда SMTP;
+	\item 501 Invalid argument - отсутствие или некорректный аргумент в команде;
+	\item 503 Bad sequence of commands - неожиданная команда для текущего состояния;
+	\item 550 Sender unknown - email отправителя не является известным для smtp-сервера (известные записаны в файле usersinfo.txt);
+	\item 552 Requested mail action aborted: exceeded storage allocation - ошибка выделения памяти, например для тела письма;
+\end{itemize}
 
 % \begin{description} \item[Команда выхода из сеанса] \input{include/re_cmd_quit_re.tex} \item[Команда передачи имени пользователя] \input{include/re_cmd_user_re.tex} \end{description}
 
