@@ -56,7 +56,7 @@ class SMTP_Client(TCP_Client):
     def recipient_to(self, cmd='RCPT TO', email='<max@mail.ru>'):
         return self.send_and_get('{}:{}'.format(cmd, email))
 
-    def data(self, cmd='DATA', message='Hello, friend\n.'):
+    def data(self, cmd='DATA', message='Hello, friend!\nHere is my text for you.\n.'):
         self.send('{}'.format(cmd))
         test_smtp_output('wait text', self.receive(), ['354', 'start', '<CRLF>.<CRLF>'])
         for line in message.split('\n'):

@@ -4,6 +4,16 @@
 #include <assert.h>
 
 
+#define HELO_REGEX "HELO (([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,6})"
+#define EHLO_REGEX "EHLO (([A-z0-9]([A-z0-9\-]{0,61}[A-z0-9])?\.)+[A-z]{2,6})"
+
+//#define EHLO_REGEX "EHLO \\[(([0-9]+\\.)+[0-9]+)\\]"
+
+#define MAIL_FROM_REGEX "MAIL FROM:<([-A-z0-9.]+@([A-z0-9][-A-z0-9]+\.)+[A-z]{2,4})>"
+#define RCPT_TO_REGEX "RCPT TO:<([-A-z0-9.]+@([A-z0-9][-A-z0-9]+\.)+[A-z]{2,4})>"
+#define VRFY_REGEX "VRFY ([A-z0-9.@-_]+)"
+
+
 SmtpState* make_states(int amount) {
     SmtpState* states = (SmtpState*) malloc(sizeof(SmtpState) * amount);
     if (states == NULL) {
@@ -115,6 +125,7 @@ void smtp_response(int code, char *output) {
 int handle_request(SmtpState *state, char *input, char *output) {
     if (state->status == GET_DATA) {
         if (check_command(".\r\n", input) == 0 || check_contains("\r\n.\r\n", input) == 1) {
+            append_message(state->msg, input);
             int res_code = save_maildir(state->msg);
             if (res_code == 0) {
                 state->status = READY;
@@ -135,7 +146,7 @@ int handle_request(SmtpState *state, char *input, char *output) {
     }
     else if (check_command("RSET", input) == 0) {
         if (state->msg != NULL) {
-            destroy_message(state->msg);
+            clear_message(state->msg);
             state->msg = NULL;
         }
         state->status = READY;
@@ -143,7 +154,7 @@ int handle_request(SmtpState *state, char *input, char *output) {
     }
     else if (check_command("QUIT", input) == 0) {
         if (state->msg != NULL) {
-            destroy_message(state->msg);
+            clear_message(state->msg);
             state->msg = NULL;
         }
         smtp_response(221, output);
@@ -153,9 +164,9 @@ int handle_request(SmtpState *state, char *input, char *output) {
         if (state->status == READY) {
             char domain[100];
 
-            if (check_regex("HELO (([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,6})", input, domain) == 0) {
+            if (check_regex(HELO_REGEX, input, domain) == 0) {
                 if (state->msg != NULL) {
-                    destroy_message(state->msg);
+                    clear_message(state->msg);
                 }
                 state->msg = make_message();
                 set_domain(state->msg, domain);
@@ -174,9 +185,9 @@ int handle_request(SmtpState *state, char *input, char *output) {
         if (state->status == READY || state->status == NEED_SENDER) {
             char domain[100];
 
-            if (check_regex("EHLO (([A-z0-9]([A-z0-9\-]{0,61}[A-z0-9])?\.)+[A-z]{2,6})", input, domain) == 0) {
+            if (check_regex(EHLO_REGEX, input, domain) == 0) {
                 if (state->msg != NULL) {
-                    destroy_message(state->msg);
+                    clear_message(state->msg);
                 }
                 state->msg = make_message();
                 set_domain(state->msg, domain);
@@ -186,7 +197,7 @@ int handle_request(SmtpState *state, char *input, char *output) {
 
                 strcpy(output, "250-");
                 strcat(output, app_name);
-                strcat(output, "\r\n250-PIPELINING\r\n250-8BITMIME\r\n250-VRFY\r\n");
+                strcat(output, "\r\n250-PIPELINING\r\n250-8BITMIME\r\n250-VRFY\r\n250 OK\r\n");
                 state->status = NEED_SENDER;
             }
             else {
@@ -201,7 +212,7 @@ int handle_request(SmtpState *state, char *input, char *output) {
         if (state->status == NEED_SENDER) {
             char sender[100];
 
-            if (check_regex("MAIL FROM:<([-A-z0-9.]+@([A-z0-9][-A-z0-9]+\.)+[A-z]{2,4})>", input, sender) == 0) {
+            if (check_regex(MAIL_FROM_REGEX, input, sender) == 0) {
                 if (check_user(sender, NULL) == 0) {
                     set_sender(state->msg, sender);
                     smtp_response(250, output);
@@ -223,7 +234,7 @@ int handle_request(SmtpState *state, char *input, char *output) {
         if (state->status == NEED_RECIPIENT || state->status == NEED_DATA) {
             char recipient[100];
 
-            if (check_regex("RCPT TO:<([-A-z0-9.]+@([A-z0-9][-A-z0-9]+\.)+[A-z]{2,4})>", input, recipient) == 0) {
+            if (check_regex(RCPT_TO_REGEX, input, recipient) == 0) {
 
                 if (state->msg->rec_cnt < 10) {
                     set_recipient(state->msg, recipient);
@@ -254,7 +265,7 @@ int handle_request(SmtpState *state, char *input, char *output) {
     else if (check_command("VRFY", input) == 0) {
         if (state->status == READY || state->status == NEED_SENDER) {
             char user_info[255];
-            if (check_regex("VRFY ([A-z0-9.@-_]+)", input, user_info) == 0) {
+            if (check_regex(VRFY_REGEX, input, user_info) == 0) {
                 char full_info[1024];
                 if (check_user(user_info, full_info) == 0) {
                     strcpy(output, "250 ");
@@ -307,6 +318,15 @@ SmtpMessage *make_message() {
 
     msg->msg_size = 100;
     return msg;
+}
+
+void clear_message(SmtpMessage *msg) {
+    if (msg != NULL) {
+        if (msg->message != NULL) {
+            msg->message[0] = '\0';
+        }
+        msg->rec_cnt = 0;
+    }
 }
 
 void destroy_message(SmtpMessage *msg) {
@@ -377,8 +397,11 @@ char* set_recipient(SmtpMessage *msg, char *recipient) {
 }
 
 char* append_message(SmtpMessage *msg, char *msgChunk) {
-    if (strlen(msg->message) + strlen(msgChunk) > msg->msg_size) {
-        msg->msg_size *= 2;
+    int need_mem = strlen(msg->message) + strlen(msgChunk);
+
+    if (need_mem > msg->msg_size) {
+        while (need_mem > msg->msg_size) { msg->msg_size *= 2; }
+
         msg->message = (char *) realloc(msg->message, sizeof(char) * msg->msg_size);
 
         if (msg->message == NULL) {
@@ -388,6 +411,7 @@ char* append_message(SmtpMessage *msg, char *msgChunk) {
         }
     }
     strcat(msg->message, msgChunk);
+//    printf("Message append: %s\n", msg->message);
     return msg->message;
 }
 
@@ -532,6 +556,8 @@ int save_maildir_for(SmtpMessage *msg, int index) {
     fprintf(mail_file, "Content-Transfer-Encoding: 8bit\n");
     fprintf(mail_file, "\n\n");
     fprintf(mail_file, "%s\n", msg->message);
+
+    fflush(mail_file);
 
     fclose(mail_file);
 

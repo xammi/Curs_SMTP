@@ -10,6 +10,7 @@ int logger_loop(const char *log_file_name) {
         perror("ftok() failed");
         return 1;
     }
+
     int msg_queue = msgget(key, 0644 | IPC_CREAT);
     if (msg_queue < 0) {
         perror("msgget() failed");
@@ -68,7 +69,7 @@ int write_log(const char *msg) {
         return 1;
     }
 
-    int res_code = msgsnd(msg_queue, msg, strlen(msg), 0);
+    int res_code = msgsnd(msg_queue, msg, 512, 0);
     if (res_code < 0) {
         perror("msgsnd() failed");
         return 2;

@@ -144,24 +144,29 @@ int run_server(Server *server) {
             }
 
             // unexpected event
-            if (fd_wrap.revents != POLLIN) {
-                write_log("Error: revents");
-                printf("Error: revents == %i\n", fd_wrap.revents);
-                return -1;
+            if ((fd_wrap.revents & POLLHUP) == POLLHUP || (fd_wrap.revents & POLLERR) == POLLERR) {
+                write_log("Error: revents pollhup");
+                close(fd_wrap.fd);
+                server->fds[I].fd = -1;
+                compress_fds = 1;
+                continue;
             }
-            if (fd_wrap.fd == server->listen_fd) {
-                int res_code = accept_clients(server);
-                if (res_code < 0) {
-                    return -1;
+
+            if (fd_wrap.revents & POLLIN == POLLIN) {
+                if (fd_wrap.fd == server->listen_fd) {
+                    int res_code = accept_clients(server);
+                    if (res_code < 0) {
+                        return -1;
+                    }
                 }
-            }
-            else {
-                SmtpState *state = server->states + I;
-                int need_close = handle_client(server, server->fds[I], state);
-                if (need_close != 0) {
-                    close(fd_wrap.fd);
-                    server->fds[I].fd = -1;
-                    compress_fds = 1;
+                else {
+                    SmtpState *state = server->states + I;
+                    int need_close = handle_client(server, server->fds[I], state);
+                    if (need_close != 0) {
+                        close(fd_wrap.fd);
+                        server->fds[I].fd = -1;
+                        compress_fds = 1;
+                    }
                 }
             }
         }

@@ -72,6 +72,8 @@ int main(int argc, char *argv[]) {
     }
     else if (pid == 0) {
         sleep(1);
+
+        // few attempts
         while (wait_logger() != 0) { sleep(1); perror("wait_logger() failed"); }
         main_process();
         stop_logger();

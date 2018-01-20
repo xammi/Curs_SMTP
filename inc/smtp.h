@@ -26,6 +26,7 @@ typedef struct {
 } SmtpMessage;
 
 SmtpMessage* make_message();
+void clear_message(SmtpMessage *msg);
 void destroy_message(SmtpMessage *msg);
 
 char* set_domain(SmtpMessage *msg, char *domain);
